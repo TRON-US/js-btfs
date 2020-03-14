@@ -1,39 +1,85 @@
-/* eslint-disable no-console */
 'use strict'
 const React = require('react')
-const ipfsClient = require('ipfs-http-client')
+const btfsClient = require('../../../../btfs-http-client/src/index')
+const config = require("../config")
+
+var errorCount = 0
 
 class App extends React.Component {
+  //BTFS-1437
   constructor () {
     super()
     this.state = {
-      added_file_hash: null
+      added_file_hash: null,
+      added_session_id:  null,
+      added_session_status: null,
+      added_session_contracts: null,
+      added_status_response: null,
     }
-    this.ipfs = ipfsClient('/ip4/127.0.0.1/tcp/5001')
+
+    this.btfs = btfsClient('/ip4/127.0.0.1/tcp/5001')
 
     // bind methods
     this.captureFile = this.captureFile.bind(this)
     this.saveToIpfs = this.saveToIpfs.bind(this)
     this.handleSubmit = this.handleSubmit.bind(this)
+    //bing offline signing methods
+    this.upload = this.upload.bind(this)
+    this.displayStatus = this.displayStatus.bind(this)
+    this.signBatch = this.signBatch.bind(this)
+    this.sign = this.sign.bind(this)
+    this.getBatch = this.getBatch.bind(this)
+    this.getUnsignedData = this.getUnsignedData.bind(this)
+
+    this.statusTimer = null
+    this.stateTimer = null
+    this.time = Date.now()
+
   }
 
-  captureFile (event) {
-    event.stopPropagation()
-    event.preventDefault()
-    if (document.getElementById('keepFilename').checked) {
-      this.saveToIpfsWithFilename(event.target.files)
-    } else {
-      this.saveToIpfs(event.target.files)
+  setTime(){
+    this.time = Date.now()
+  }
+
+  addStatus(status) {
+    let div = document.getElementById('contractStatus')
+    if (this.state.added_status_response != null){
+      div.innerHTML += "<h3>".concat(status).concat(": ").concat(this.state.added_status_response).concat("</h3>")
+    }else {
+      div.innerHTML += "<h3>".concat(status).concat("</h3>")
+    }
+  }
+
+  async upload(event) {
+    let input = {
+      Hash: this.state.added_file_hash,
+      TimeNonce: this.time.toString(),
+      PrivKey: config.PrivKey,
+      PeerID: config.PeerID
+    }
+    const uploadResponse = this.btfs.upload(
+      input,
+    { s: `16Uiu2HAmRfbc8E4ungNn3FWqhrKVbXotRLNk8fodgpcUeUP6nw83,16Uiu2HAmRfbc8E4ungNn3FWqhrKVbXotRLNk8fodgpcUeUP6nw83` }
+    )
+    try {
+      for await (const response of uploadResponse) {
+        this.state.added_session_id = response.ID
+        //create a timer to get the current status every 1000
+        this.displayStatus(event)
+      }
+    } catch (err) {
+      console.error(err)
     }
   }
 
   // Example #1
   // Add file to IPFS and return a CID
   async saveToIpfs (files) {
-    const source = this.ipfs.add(
+    const source = this.btfs.add(
       [...files],
       {
-        progress: (prog) => console.log(`received: ${prog}`)
+        progress: (prog) => console.log(`received: ${prog}`),
+        chunker : "reed-solomon-1-1-256000"
       }
     )
     try {
@@ -46,46 +92,229 @@ class App extends React.Component {
     }
   }
 
-  // Example #2
-  // Add file to IPFS and wrap it in a directory to keep the original filename
-  async saveToIpfsWithFilename (files) {
-    const file = [...files][0]
-    const fileDetails = {
-      path: file.name,
-      content: file
+  async getStatus(event) {
+    console.log("Here is the session id:" + this.state.added_session_id)
+    let input  = {
+      SessionId: this.state.added_session_id,
     }
-    const options = {
-      wrapWithDirectory: true,
-      progress: (prog) => console.log(`received: ${prog}`)
-    }
-
-    const source = this.ipfs.add(fileDetails, options)
+    const statusResponse = this.btfs.statusSign(input, {})
     try {
-      for await (const file of source) {
-        console.log(file)
-        this.setState({ added_file_hash: file.cid.toString() })
+      for await (const response of statusResponse) {
+        this.state.added_session_status = response.Status
+        this.state.added_status_response =  response.Message
       }
     } catch (err) {
       console.error(err)
     }
   }
 
+  async sign(event, data) {
+    let input  = {
+      SessionId: this.state.added_session_id,
+      SessionStatus: this.state.added_session_status,
+      Hash: this.state.added_file_hash,
+      Unsigned: data,
+      TimeNonce: this.time,
+      PrivKey: config.PrivKey,
+      PeerID: config.PeerID
+
+    }
+    const signResponse = this.btfs.sign(input, {})
+    try {
+      for await (const response of signResponse) {
+      }
+    } catch (err) {
+      console.error(err)
+    }
+  }
+
+  async signBatch(event, contracts) {
+    let input  = {
+      SessionId: this.state.added_session_id,
+      SessionStatus: this.state.added_session_status,
+      Hash: this.state.added_file_hash,
+      Contracts: contracts,
+      TimeNonce: this.time,
+      PrivKey: config.PrivKey,
+      PeerID: config.PeerID
+    }
+    const signBatchResponse = this.btfs.signBatch(input, {"offline-sign-mode" : true })
+    try {
+      for await (const response of signResponse) {
+      }
+    } catch (err) {
+      console.error(err)
+    }
+  }
+
+  async getBatch(event) {
+    let input  = {
+      SessionId: this.state.added_session_id,
+      SessionStatus: this.state.added_session_status,
+      Hash: this.state.added_file_hash,
+      TimeNonce: this.time,
+      PrivKey: config.PrivKey,
+      PeerID: config.PeerID
+    }
+    const batchResponse = this.btfs.getBatch(input, {})
+    try {
+      for await (const response of batchResponse) {
+        console.log("Inside for wait batch" + input.SessionStatus)
+        input.Contracts = (response).Contracts
+        const signResponse = await this.btfs.signBatch(input, {})
+        for await (const response of signResponse) {
+          console.log("Response from signResponse " + response)
+        }
+      }
+    } catch (err) {
+      console.error(err)
+    }
+  }
+
+  async getUnsignedData(event) {
+    let input  = {
+      SessionId: this.state.added_session_id,
+      SessionStatus: this.state.added_session_status,
+      Hash: this.state.added_file_hash,
+      TimeNonce: this.time,
+      PrivKey: config.PrivKey,
+      PeerID: config.PeerID
+    }
+    const unsignedDataResponse = this.btfs.getUnsigned(input, {})
+    try {
+      for await (const response of unsignedDataResponse) {
+        input.Unsigned = response.Unsigned
+        input.Opcode = response.Opcode
+        input.Price = response.Price
+        const signResponse = await this.btfs.sign(input, {}, {})
+        for await (const response of signResponse) {
+          console.log("Response from signResponse " + response)
+        }
+      }
+    } catch (err) {
+      console.error(err)
+    }
+  }
+
+  displayStatus(event) {
+    this.statusTimer = setInterval(() => {
+      this.getStatus(event)
+      if (errorCount > 9){
+        //after 10 error, cancel both timers
+        clearTimeout(this.statusTimer)
+        clearTimeout(this.stateTimer)
+      }
+    }, 1000)
+    
+    this.stateTimer = setInterval(async () => {
+      console.log(this.state.added_session_status)
+      switch (this.state.added_session_status) {
+        case "uninitialized":
+          this.addStatus(this.state.added_session_status)
+          break
+        case "initSignReadyEscrow":
+          this.addStatus(this.state.added_session_status)
+          console.log("after the addStatus")
+          await this.getBatch(event)
+          break
+        case "initSignReadyGuard":
+          this.addStatus(this.state.added_session_status)
+          this.getBatch(event)
+          break
+        case "balanceSignReady":
+        case "payChannelSignReady":
+        case "payRequestSignReady":
+        case "guardSignReady":
+          this.getUnsignedData(event)
+          this.addStatus(this.state.added_session_status)
+          break
+        case "init":
+          this.addStatus(this.state.added_session_status)
+          break
+        case "complete":
+          this.addStatus(this.state.added_session_status)
+          clearTimeout(this.statusTimer)
+          clearTimeout(this.stateTimer)
+          break
+        case "done":
+          this.addStatus(this.state.added_session_status)
+          clearTimeout(this.statusTimer)
+          break
+        case "error":
+          errorCount = errorCount + 1
+          this.addStatus(this.state.added_session_status)
+          break;
+        default:
+          break;
+      }
+    }, 3000)
+  }
+
+  captureFile (event) {
+    event.stopPropagation()
+    event.preventDefault()
+    if (document.getElementById('keepFilename').checked) {
+      this.saveToIpfsWithFilename(event.target.files)
+    } else {
+      this.saveToIpfs(event.target.files)
+    }
+  }
+
+  // Example #2
+  // Add file to BTFS and wrap it in a directory to keep the original filename
+  saveToIpfsWithFilename (files) {
+    const file = [...files][0]
+    let btfsId
+    const fileDetails = {
+      path: file.name,
+      content: file
+    }
+    const options = {
+      wrapWithDirectory: true,
+      progress: (prog) => console.log(`received: ${prog}`),
+      chunker : "reed-solomon-1-1-256000"
+    }
+    this.btfs.add(fileDetails, options)
+      .then((response) => {
+        console.log(response)
+        // CID of wrapping directory is returned last
+        btfsId = response[response.length - 1].hash
+        console.log(btfsId)
+        this.setState({ added_file_hash: btfsId })
+        errorCount = 0
+        this.setTime()
+      }).catch((err) => {
+      console.error(err)
+    })
+  }
+
   handleSubmit (event) {
     event.preventDefault()
   }
 
+
   render () {
     return (
       <div>
+        <form id="myKeys" onSubmit={this.handleSubmit}>
+        </form>
+        <h2>File upload demo</h2>
         <form id='captureMedia' onSubmit={this.handleSubmit}>
-          <input type='file' onChange={this.captureFile} /><br/>
+          <input type='file' onChange={this.captureFile} />
           <label htmlFor='keepFilename'><input type='checkbox' id='keepFilename' name='keepFilename' /> keep filename</label>
         </form>
         <div>
           <a target='_blank'
-            href={'https://ipfs.io/ipfs/' + this.state.added_file_hash}>
+             href={'https://ipfs.io/ipfs/' + this.state.added_file_hash}>
             {this.state.added_file_hash}
           </a>
+        </div>
+        <h2>Offline signing demo</h2>
+        <form id='captureMedia' onSubmit={this.handleSubmit}>
+          <input type='text' id='filehash' name='filehash' value={this.state.added_file_hash}/><br/>
+          <button onClick={this.upload}>Upload file hash</button>
+        </form>
+        <div id="contractStatus">
         </div>
       </div>
     )
