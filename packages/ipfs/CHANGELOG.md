@@ -492,7 +492,7 @@ Signed-off-by: Alan Shaw <alan.shaw@protocol.ai>
     * all IPLD formats included
 * In browser application bundle `require('ipfs')` bundled with webpack/browserify/etc.
     * only `ipld-dag-pb`, `ipld-dag-cbor` and `ipld-raw` included
-* CDN bundle `<script src="https://unpkg.com/ipfs/dist/index.min.js"></script>`
+* CDN bundle `<script src="https://cdn.jsdelivr.net/npm/ipfs/dist/index.min.js"></script>`
     * all IPLD formats included
 
 Co-Authored-By: hugomrdias <mail@hugodias.me>
@@ -1044,9 +1044,9 @@ you need to bundle them yourself.
 
 ### Features
 
-* Added `ipfs.name.publish` and `ipfs.name.resolve`. This only works on your local node for the moment until the DHT lands. [API docs can be found here](https://github.com/ipfs/interface-ipfs-core/blob/master/SPEC/NAME.md).
+* Added `ipfs.name.publish` and `ipfs.name.resolve`. This only works on your local node for the moment until the DHT lands. [API docs can be found here](https://github.com/ipfs/js-ipfs/blob/master/packages/interface-ipfs-core/SPEC/NAME.md).
 * Added `ipfs.resolve` API. Note that this is a partial implementation allowing you to resolve IPFS paths like `/ipfs/QmRootHash/path/to/file` to `/ipfs/QmFileHash`. It does not support IPNS yet.
-* `ipfs.files.add*` now supports a `chunker` option, see [the API docs](https://github.com/ipfs/interface-ipfs-core/blob/master/SPEC/FILES.md#filesadd) for details
+* `ipfs.files.add*` now supports a `chunker` option, see [the API docs](https://github.com/ipfs/js-ipfs/blob/master/packages/interface-ipfs-core/SPEC/FILES.md#filesadd) for details
 
 
 <a name="0.31.7"></a>
