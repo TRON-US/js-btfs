@@ -181,7 +181,9 @@ class App extends React.Component {
         input.Unsigned = response.Unsigned
         input.Opcode = response.Opcode
         input.Price = response.Price
-        await this.btfs.sign(input, {}, {})
+        const unsignedDataResponse = await this.btfs.sign(input, {}, {})
+        for await (const response of unsignedDataResponse ){
+        }
       }
     } catch (err) {
       console.error(err)
@@ -206,7 +208,6 @@ class App extends React.Component {
           break
         case "initSignReadyEscrow":
           this.addStatus(this.state.added_session_status)
-          console.log("after the addStatus")
           await this.getBatch(event)
           break
         case "initSignReadyGuard":
