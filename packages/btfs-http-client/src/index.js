@@ -8,7 +8,6 @@ const urlSource = require('ipfs-utils/src/files/url-source')
 function btfsClient (config) {
   return {
     add: require('./add')(config),
-    upload: require('./upload')(config),
     bitswap: require('./bitswap')(config),
     block: require('./block')(config),
     bootstrap: require('./bootstrap')(config),
@@ -40,7 +39,7 @@ function btfsClient (config) {
     shutdown: require('./stop')(config),
     swarm: require('./swarm')(config),
     version: require('./version')(config),
-
+    upload: require('./upload')(config),
     statusSign: require('./status')(config),
     getBatch: require('./getbatch')(config),
     sign: require('./sign')(config),

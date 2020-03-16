@@ -28,11 +28,10 @@ function sessionSignature(peerId, hash, time) {
 }
 
 module.exports = configure((ky) => {
-  return async function* signbatch(input, options) {
+  return async function * signbatch(input, options) {
     //BTFS-1437
     options = options || {}
 
-    console.log("Inside the sign batch")
     const searchParams = new URLSearchParams(options)
     var privKey = input.PrivKey
 
