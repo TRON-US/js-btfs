@@ -7,7 +7,7 @@ function sessionSignature(peerId, hash, time) {
   return peerId + ":" + hash + ":" + time.toString()
 }
 
-module.exports = configure(({ ky }) => {
+module.exports = configure(( ky ) => {
   return async function* batch(input, options) {
     //BTFS-1437
     options = options || {}
@@ -22,13 +22,15 @@ module.exports = configure(({ ky }) => {
     searchParams.append("arg" ,  await idPriv.privKey.sign(sessionBuff))
     searchParams.append("arg", input.SessionStatus)
 
-    const res = await ky.post('storage/upload/getcontractbatch', {
+    const res = await ky.ndjson('storage/upload/getcontractbatch', {
+      method: 'POST',
       timeout: options.timeout,
       signal: options.signal,
       headers: options.headers,
       searchParams
-    }).json()
-
-    yield res
+    })
+    for await (let upRes of res){
+      yield upRes
+    }
   }
 })

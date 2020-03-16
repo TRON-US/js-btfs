@@ -1,18 +1,16 @@
 'use strict'
 
 const configure = require('../lib/configure')
-const toIterable = require('../lib/stream-to-iterable')
 const toCamel = require('../lib/object-to-camel')
 const peerId = require('peer-id')
-const ndjson = require('iterable-ndjson')
 
 function sessionSignature(peerId, hash, time) {
   return peerId + ":" + hash + ":" + time.toString()
 }
 
-module.exports = configure(({ ky }) => {
-  return async function * upload (input, options) {
-    //BTFS-1437
+module.exports = configure((api) => {
+  return async function * upload (input, options = {}) {
+
     options = options || {}
 
     const searchParams = new URLSearchParams(options.searchParams)
@@ -26,14 +24,14 @@ module.exports = configure(({ ky }) => {
     searchParams.set('m', "custom")
     searchParams.set('s', options.s.toString())
 
-    var res = await ky.post( 'storage/upload/offline', {
+    const res = api.ndjson( 'storage/upload/offline', {
       timeout: options.timeout,
       signal: options.signal,
       headers: options.headers,
       searchParams
-    }).json()
-
-    yield res
+    })
+    for await (let upRes of res){
+      yield upRes
+    }
   }
 })
-

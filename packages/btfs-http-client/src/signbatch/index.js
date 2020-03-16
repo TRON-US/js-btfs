@@ -1,7 +1,6 @@
 'use strict'
 
 const configure = require('../lib/configure')
-const toIterable = require('../lib/stream-to-iterable')
 const toCamel = require('../lib/object-to-camel')
 const protoGuard = require('../../protos/guard_pb')
 const protoEscrow = require('../../protos/escrow_pb')
@@ -28,7 +27,7 @@ function sessionSignature(peerId, hash, time) {
   return peerId + ":" + hash + ":" + time.toString()
 }
 
-module.exports = configure(({ ky }) => {
+module.exports = configure((ky) => {
   return async function* signbatch(input, options) {
     //BTFS-1437
     options = options || {}
@@ -58,13 +57,16 @@ module.exports = configure(({ ky }) => {
       searchParams.append("arg", JSON.stringify(input.Contracts))
 
       let res
-      res = await ky.post('storage/upload/signcontractbatch', {
+      res = await ky.ndjson('storage/upload/signcontractbatch', {
+        method: 'POST',
         timeout: options.timeout,
         signal: options.signal,
         headers: options.headers,
         searchParams: searchParams
       })
-      yield res
+      for await (let upRes of res){
+        yield upRes
+      }
     }
   }
 })

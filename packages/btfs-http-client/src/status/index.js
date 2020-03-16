@@ -2,7 +2,7 @@
 
 const configure = require('../lib/configure')
 
-module.exports = configure(({ ky }) => {
+module.exports = configure((ky) => {
   return async function * status (input, options) {
     //BTFS-1437
     options = options || {}
@@ -11,13 +11,15 @@ module.exports = configure(({ ky }) => {
 
     searchParams.set("arg", input.SessionId)
 
-    var res = await ky.post( 'storage/upload/status', {
+    var res = await ky.ndjson( 'storage/upload/status', {
+      method: 'POST',
       timeout: options.timeout,
       signal: options.signal,
       headers: options.headers,
       searchParams: searchParams
-    }).json()
-
-    yield res
+    })
+    for await (let upRes of res){
+      yield upRes
+    }
   }
 })

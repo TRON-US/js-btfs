@@ -51,25 +51,23 @@ class App extends React.Component {
   }
 
   async upload(event) {
-    let input = {
-      Hash: this.state.added_file_hash,
-      TimeNonce: this.time.toString(),
-      PrivKey: config.PrivKey,
-      PeerID: config.PeerID
-    }
-    const uploadResponse = this.btfs.upload(
-      input,
-    { s: `16Uiu2HAmRfbc8E4ungNn3FWqhrKVbXotRLNk8fodgpcUeUP6nw83,16Uiu2HAmRfbc8E4ungNn3FWqhrKVbXotRLNk8fodgpcUeUP6nw83` }
+    const response = this.btfs.upload(
+      {
+        Hash: this.state.added_file_hash,
+        TimeNonce: this.time.toString(),
+        PrivKey: config.PrivKey,
+        PeerID: config.PeerID
+      },
+      { s: `16Uiu2HAmRfbc8E4ungNn3FWqhrKVbXotRLNk8fodgpcUeUP6nw83,16Uiu2HAmRfbc8E4ungNn3FWqhrKVbXotRLNk8fodgpcUeUP6nw83` }
     )
     try {
-      for await (const response of uploadResponse) {
-        this.state.added_session_id = response.ID
-        //create a timer to get the current status every 1000
-        this.displayStatus(event)
+      for await (const resp of response) {
+        this.state.added_session_id = resp.ID
       }
     } catch (err) {
       console.error(err)
     }
+    this.displayStatus(event)
   }
 
   // Example #1
@@ -93,7 +91,6 @@ class App extends React.Component {
   }
 
   async getStatus(event) {
-    console.log("Here is the session id:" + this.state.added_session_id)
     let input  = {
       SessionId: this.state.added_session_id,
     }
@@ -159,12 +156,8 @@ class App extends React.Component {
     const batchResponse = this.btfs.getBatch(input, {})
     try {
       for await (const response of batchResponse) {
-        console.log("Inside for wait batch" + input.SessionStatus)
         input.Contracts = (response).Contracts
-        const signResponse = await this.btfs.signBatch(input, {})
-        for await (const response of signResponse) {
-          console.log("Response from signResponse " + response)
-        }
+        await this.btfs.signBatch(input, {})
       }
     } catch (err) {
       console.error(err)
@@ -186,10 +179,7 @@ class App extends React.Component {
         input.Unsigned = response.Unsigned
         input.Opcode = response.Opcode
         input.Price = response.Price
-        const signResponse = await this.btfs.sign(input, {}, {})
-        for await (const response of signResponse) {
-          console.log("Response from signResponse " + response)
-        }
+        await this.btfs.sign(input, {}, {})
       }
     } catch (err) {
       console.error(err)
@@ -205,7 +195,7 @@ class App extends React.Component {
         clearTimeout(this.stateTimer)
       }
     }, 1000)
-    
+
     this.stateTimer = setInterval(async () => {
       console.log(this.state.added_session_status)
       switch (this.state.added_session_status) {

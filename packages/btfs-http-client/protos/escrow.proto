@@ -1,0 +1,53 @@
+syntax = "proto3";
+
+package escrow;
+
+//import "ledger.proto";
+//import "github.com/tron-us/protobuf/gogoproto/gogo.proto";
+//import "google/protobuf/timestamp.proto";
+
+enum TokenType {
+  BTT = 0;
+}
+
+enum Schedule {
+  MONTHLY = 0;
+  QUARTERLY = 1;
+  ANNUALLY = 2;
+  CUSTOMIZED = 3;
+}
+
+message ContractID {
+  string contract_id = 1;
+  bytes address = 2;
+}
+
+message SignedContractID {
+  ContractID data = 1;
+  bytes signature = 2;
+}
+
+message EscrowContract {
+  string contract_id = 1; // identity of a contract
+  bytes buyer_address = 2;
+  bytes seller_address = 3;
+  bytes auth_address = 4; // authority who can cancel escrow
+  int64 amount = 5;
+  int64 collateral_amount = 6;
+  int64 withhold_amount = 7; // escrow hold amount till the last layment
+  TokenType token_type = 8; // token type enum
+  Schedule payout_schedule = 9; // schedule enum
+  int32 num_payouts = 10; // numbers of payouts
+  bytes reference = 11; // reference like hash value etc
+  int32 customize_payout_period = 12; // customized payout period in days
+}
+message Escrow {
+    string contract_id = 1;
+    int64 escrow_id = 2;
+    bytes from_address = 3;
+    bytes to_address = 4;
+    int64 amount = 5;
+    int64 collateral_amount = 6;
+}
+
+
