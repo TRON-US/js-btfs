@@ -157,7 +157,9 @@ class App extends React.Component {
     try {
       for await (const response of batchResponse) {
         input.Contracts = (response).Contracts
-        await this.btfs.signBatch(input, {})
+        const signBatchResponse = await this.btfs.signBatch(input, {})
+        for await (const response of signBatchResponse ){
+        }
       }
     } catch (err) {
       console.error(err)
