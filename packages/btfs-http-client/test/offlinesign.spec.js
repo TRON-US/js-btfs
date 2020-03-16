@@ -97,48 +97,6 @@ describe('.offlineSign', () => {
     for await (const response of reponseSignEscrowBatch) {
     }
 
-    /*
-    //guard
-    for await (const response of await btfs.statusSign(inputSessionId)) {
-      status = response.Status
-      expect(response.Status).to.equal('initSignProcessGuard')
-    }
-
-    var inputGaurdBatch = {
-      SessionId: inputSessionId.SessionId,
-        SessionStatus: status,
-    }
-
-    Object.assign(inputGaurdBatch, upOpts )
-    //get contracts guard
-    const responseBatchGuard = await btfs.getBatch(inputGaurdBatch)
-
-    for await (const response of responseBatchGuard) {
-      contracts = response
-      console.log(response)
-      expect(response.Contracts).to.not.equal(null)
-    }
-
-    //add contracts to the input batch to  be signed
-    inputBatch.Contracts = contracts
-    inputBatch.SessionStatus = status
-    console.log(inputBatch)
-
-    //sign escrow contracts
-    const reponseSignGuard = await btfs.signBatch(inputBatch)
-    for await (const response of reponseSignGuard) {
-    }
-
-    //add contracts to the input batch to  be signed
-    inputBatch.Contracts = contracts
-    inputBatch.SessionStatus = status
-    console.log(inputBatch)
-
-    //sign guard contracts
-    const responseSignGuard = await btfs.signBatch(inputBatch)
-    for await (const response of responseSignGuard) {
-    }
-    */
     //reference the demo app for more examples on how to use api
   })
 })
