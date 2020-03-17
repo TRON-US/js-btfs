@@ -26,7 +26,6 @@ class App extends React.Component {
     //bing offline signing methods
     this.upload = this.upload.bind(this)
     this.displayStatus = this.displayStatus.bind(this)
-    this.signBatch = this.signBatch.bind(this)
     this.sign = this.sign.bind(this)
     this.getBatch = this.getBatch.bind(this)
     this.getUnsignedData = this.getUnsignedData.bind(this)
@@ -117,25 +116,6 @@ class App extends React.Component {
 
     }
     const signResponse = this.btfs.sign(input, {})
-    try {
-      for await (const response of signResponse) {
-      }
-    } catch (err) {
-      console.error(err)
-    }
-  }
-
-  async signBatch(event, contracts) {
-    let input  = {
-      SessionId: this.state.added_session_id,
-      SessionStatus: this.state.added_session_status,
-      Hash: this.state.added_file_hash,
-      Contracts: contracts,
-      TimeNonce: this.time,
-      PrivKey: config.PrivKey,
-      PeerID: config.PeerID
-    }
-    const signBatchResponse = this.btfs.signBatch(input, {"offline-sign-mode" : true })
     try {
       for await (const response of signResponse) {
       }

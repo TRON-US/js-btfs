@@ -2,7 +2,7 @@
 /* eslint max-nested-callbacks: ["error", 8] */
 'use strict'
 
-const { expect } = require('interface-btfs-core/src/utils/mocha')
+const { expect } = require('interface-ipfs-core/src/utils/mocha')
 const loadFixture = require('aegir/fixtures')
 const all = require('it-all')
 const testfile = loadFixture('test/fixtures/testfile.txt')
@@ -21,7 +21,7 @@ describe('.offlineSign', () => {
     time = Date.now()
   })
 
-  it('should successfully sign sample contract ', async () => {
+  it('should successfully sign sample contract from guard', async () => {
 
     const expectedMultihash = 'QmRoACBEDRtT1GF9WE21qHGgZSNPsL3zbTawC24Gnfk5bb'
 
@@ -32,8 +32,7 @@ describe('.offlineSign', () => {
     after(() => f.clean())
 
     var addOpts = {
-      progress: (prog) => console.log(`received: ${prog}`),
-        chunker : "reed-solomon-1-1-256000"
+      chunker : "reed-solomon-1-1-256000"
     }
 
     var upOpts = {
@@ -42,6 +41,7 @@ describe('.offlineSign', () => {
       PeerID : "16Uiu2HAm5KyUqXm7gZb5ECj4vDWVVjVuzNoj7cNM3Q7Eoz5Vsj2D",
       PrivKey: "CAISIAHU0I1KRRe0LvFEXXaIOT9aDa3RTSUc488JmHj4kCbW"
     }
+
     var s = { s: `16Uiu2HAmRfbc8E4ungNn3FWqhrKVbXotRLNk8fodgpcUeUP6nw83,16Uiu2HAmRfbc8E4ungNn3FWqhrKVbXotRLNk8fodgpcUeUP6nw83` }
 
     //test add function
@@ -89,14 +89,14 @@ describe('.offlineSign', () => {
     }
 
     //add contracts to the input batch to  be signed
-    inputBatch.Contracts = contracts
+    inputBatch.Contracts = contracts.Contracts
     inputBatch.SessionStatus = status
 
     //sign escrow contracts
-    const reponseSignEscrowBatch = await btfs.signBatch(inputBatch)
+    const reponseSignEscrowBatch = await btfs.signBatch(inputBatch, {})
     for await (const response of reponseSignEscrowBatch) {
+      expect(response).to.equal('{}')
     }
-
     //reference the demo app for more examples on how to use api
   })
 })

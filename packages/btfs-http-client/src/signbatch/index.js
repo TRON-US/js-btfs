@@ -11,10 +11,10 @@ var signContract = function (privKey, contract, sessionStatus) {
       var by = Buffer.from(contract,'base64') // contract in string <- 1. OK
       const id = await peerId.createFromPrivKey(Buffer.from(privKey, 'base64'))
       let raw
-      if (sessionStatus == 'initSignReadyEscrow'){
+      if (sessionStatus == 'initSignReadyEscrow' || sessionStatus == "initSignProcessEscrow"){
           raw = proto.escrow.EscrowContract.deserializeBinary(by).serializeBinary()
       }
-      else if (sessionStatus == 'initSignReadyGuard') {
+      else if (sessionStatus == 'initSignReadyGuard' || sessionStatus == "initSignProcessGuard") {
           raw = proto.guard.ContractMeta.deserializeBinary(by).serializeBinary()
       }
      const signature = await id.privKey.sign(Buffer.from(raw,'base64'))
