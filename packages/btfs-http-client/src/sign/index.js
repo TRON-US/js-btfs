@@ -9,26 +9,26 @@ const peerId = require('peer-id')
 var EC = require('elliptic').ec
 
 function bnToBuf(bn) {
-  var hex = BigInt(bn).toString(16);
-  if (hex.length % 2) { hex = '0' + hex; }
-  var len = hex.length / 2;
-  var u8 = new Uint8Array(len);
-  var i = 0;
-  var j = 0;
+  var hex = BigInt(bn).toString(16)
+  if (hex.length % 2) { hex = '0' + hex }
+  var len = hex.length / 2
+  var u8 = new Uint8Array(len)
+  var i = 0
+  var j = 0
   while (i < len) {
-    u8[i] = parseInt(hex.slice(j, j+2), 16);
-    i += 1;
-    j += 2;
+    u8[i] = parseInt(hex.slice(j, j+2), 16)
+    i += 1
+    j += 2
   }
-  return u8;
+  return u8
 }
 
 function rawFullPrivKey(privKey) {
   var ec = new EC('secp256k1')
   const key = ec.keyFromPrivate(privKey, 'bytes')
-  const pubkey = key.getPublic();
-  const x =  bnToBuf(pubkey.x.toString());
-  const y =  bnToBuf(pubkey.y.toString());
+  const pubkey = key.getPublic()
+  const x =  bnToBuf(pubkey.x.toString())
+  const y =  bnToBuf(pubkey.y.toString())
   var publicKey = Buffer.concat([new Buffer([0x04]), new Buffer(x.slice(0,32)), new Buffer(y)])
   return publicKey
 }
@@ -36,15 +36,15 @@ function rawFullPrivKey(privKey) {
 function rawFullPubKey(pubKey) {
   var ec = new EC('secp256k1')
   const key = ec.keyFromPublic(pubKey, 'bytes')
-  const pubkey = key.getPublic();
-  const x =  bnToBuf(pubkey.x.toString());
-  const y =  bnToBuf(pubkey.y.toString());
+  const pubkey = key.getPublic()
+  const x =  bnToBuf(pubkey.x.toString())
+  const y =  bnToBuf(pubkey.y.toString())
   var publicKey = Buffer.concat([new Buffer([0x04]), new Buffer(x.slice(0,32)), new Buffer(y)])
   return publicKey
 }
 
 var signBalanceContract = function (privKey) {
-  return new Promise(   async (resolve, reject) => {
+  return new Promise(async (resolve, reject) => {
     const id = await peerId.createFromPrivKey(Buffer.from(privKey, 'base64')) //get the private key
     var pubKeyBytes = id._pubKey._key //get byte array of public key
     var lgPubKeyBuffer = new proto.ledger.PublicKey().setKey(pubKeyBytes).serializeBinary()
@@ -52,11 +52,11 @@ var signBalanceContract = function (privKey) {
     var rawlgSignedPubKey = new proto.ledger.SignedPublicKey().setSignature(signature.toString('base64')).setKey(new proto.ledger.PublicKey().setKey(pubKeyBytes))
     var signedPubKeyBinary = rawlgSignedPubKey.serializeBinary()  //marshal ledgerSignedPublicKey into bytes -> signedBytes
     resolve (signedPubKeyBinary)
-  });
+  })
 }
 
 var signPayChanContract = function (privKey, unsigned, totalPrice) {
-  return new Promise(   async (resolve, reject) => {
+  return new Promise(async (resolve, reject) => {
     const cryptoKeys = require('libp2p-crypto/src/keys')
     const libp2pCrypto = require('libp2p-crypto')
 
@@ -77,11 +77,11 @@ var signPayChanContract = function (privKey, unsigned, totalPrice) {
     var signedChanCommit = new proto.ledger.SignedChannelCommit().setChannel(channelCommit).setSignature(buyerChanSign)
     var signedChanCommitBytes = signedChanCommit.serializeBinary() //signedChanCommitBytes, err := proto.Marshal(signedChanCommit)
     resolve (signedChanCommitBytes)
-  });
+  })
 }
 
 var signPayRequestContract = function (privKey, unsigned) {
-  return new Promise(   async (resolve, reject) => {
+  return new Promise(async (resolve, reject) => {
     const idPriv = await peerId.createFromPrivKey(Buffer.from(privKey, 'base64')) //get the private key
     var unsignedBytes = Buffer.from(unsigned, 'base64')
     var result = proto.escrow.SignedSubmitContractResult.deserializeBinary(unsignedBytes)
@@ -99,17 +99,17 @@ var signPayRequestContract = function (privKey, unsigned) {
     //signedPayinReqBytes, err := proto.Marshal(signedPayinReq)
     var signedPayinReqBytes = signedPayinReq.serializeBinary()
     resolve(signedPayinReqBytes)
-  });
+  })
 }
 
 var signGuardSignContract = function (privKey, unsigned) {
-  return new Promise(   async (resolve, reject) => {
+  return new Promise(async (resolve, reject) => {
     var unsignedBytes = Buffer.from(unsigned, "base64")
     var meta = proto.guard.FileStoreMeta.deserializeBinary(unsignedBytes)
     const idPriv = await peerId.createFromPrivKey(Buffer.from(privKey, 'base64')) //get the private key
     var signed = await idPriv.privKey.sign(meta.serializeBinary())
     resolve (signed)
-  });
+  })
 }
 
 function sessionSignature(peerId, hash, time) {
@@ -125,7 +125,7 @@ module.exports = configure((ky) => {
     const searchParams = new URLSearchParams(options.searchParams)
     const idPriv = await peerId.createFromPrivKey(Buffer.from(privKey, 'base64')) //get the private key
     const sessionBuff = Buffer.from(sessionSignature(input.PeerID, input.Hash, input.TimeNonce))
-    
+
     searchParams.append("arg", input.SessionId)
     searchParams.append("arg", input.PeerID)
     searchParams.append("arg", input.TimeNonce)

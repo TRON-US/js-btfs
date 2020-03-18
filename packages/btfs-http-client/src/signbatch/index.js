@@ -7,7 +7,7 @@ const protoEscrow = require('../../protos/escrow_pb')
 const peerId = require('peer-id')
 
 var signContract = function (privKey, contract, sessionStatus) {
-  return new Promise(   async (resolve, reject) => {
+  return new Promise(async (resolve, reject) => {
       var by = Buffer.from(contract,'base64') // contract in string <- 1. OK
       const id = await peerId.createFromPrivKey(Buffer.from(privKey, 'base64'))
       let raw
@@ -19,8 +19,8 @@ var signContract = function (privKey, contract, sessionStatus) {
       }
      const signature = await id.privKey.sign(Buffer.from(raw,'base64'))
      var signC = (signature.toString('base64'))
-     resolve(signC);
-  });
+     resolve(signC)
+  })
 }
 
 function sessionSignature(peerId, hash, time) {
@@ -50,7 +50,7 @@ module.exports = configure((ky) => {
     if (input.PrivKey != null) {
       //get contracts from input
       for (var i = 0 ; i < contracts.length ; i++) {
-          input.Contracts[i].contract = await signContract(privKey, input.Contracts[i].contract, input.SessionStatus);
+          input.Contracts[i].contract = await signContract(privKey, input.Contracts[i].contract, input.SessionStatus)
       }
       //add signed contracts to the searchParams
       searchParams.append("arg", JSON.stringify(input.Contracts))

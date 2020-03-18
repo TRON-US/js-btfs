@@ -61,7 +61,7 @@ class App extends React.Component {
     )
     try {
       for await (const resp of response) {
-        this.state.added_session_id = resp.ID
+        this.setState({ added_session_id: resp.ID })
       }
     } catch (err) {
       console.error(err)
@@ -81,7 +81,6 @@ class App extends React.Component {
     )
     try {
       for await (const file of source) {
-        console.log(file)
         this.setState({ added_file_hash: file.path })
       }
     } catch (err) {
@@ -96,8 +95,8 @@ class App extends React.Component {
     const statusResponse = this.btfs.statusSign(input, {})
     try {
       for await (const response of statusResponse) {
-        this.state.added_session_status = response.Status
-        this.state.added_status_response =  response.Message
+        this.setState({ added_session_status:  response.Status })
+        this.setState({ added_status_response:  response.Message })
       }
     } catch (err) {
       console.error(err)
@@ -181,7 +180,6 @@ class App extends React.Component {
     }, 1000)
 
     this.stateTimer = setInterval(async () => {
-      console.log(this.state.added_session_status)
       switch (this.state.added_session_status) {
         case "uninitialized":
           this.addStatus(this.state.added_session_status)
@@ -216,9 +214,9 @@ class App extends React.Component {
         case "error":
           errorCount = errorCount + 1
           this.addStatus(this.state.added_session_status)
-          break;
+          break
         default:
-          break;
+          break
       }
     }, 3000)
   }
@@ -249,10 +247,8 @@ class App extends React.Component {
     }
     this.btfs.add(fileDetails, options)
       .then((response) => {
-        console.log(response)
         // CID of wrapping directory is returned last
         btfsId = response[response.length - 1].hash
-        console.log(btfsId)
         this.setState({ added_file_hash: btfsId })
         errorCount = 0
         this.setTime()
