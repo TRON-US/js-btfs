@@ -4,7 +4,6 @@ const configure = require('../lib/configure')
 
 module.exports = configure((ky) => {
   return async function * status (input, options) {
-    //BTFS-1437
     options = options || {}
 
     const searchParams = new URLSearchParams(options)

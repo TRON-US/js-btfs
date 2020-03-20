@@ -2,24 +2,21 @@
 
 const configure = require('../lib/configure')
 const peerId = require('peer-id')
-
-function sessionSignature(peerId, hash, time) {
-  return peerId + ":" + hash + ":" + time.toString()
-}
+const sessionUtils = require("../session/session-utils")
 
 module.exports = configure((ky) => {
   return async function* getunsigned(input, options) {
-    //BTFS-1437
+
     options = options || {}
 
     const searchParams = new URLSearchParams(options.searchParams)
-    const idPriv = await peerId.createFromPrivKey(Buffer.from(input.PrivKey, 'base64')) //get the private key
-    const sessionBuff = Buffer.from(sessionSignature(input.PeerID, input.Hash, input.TimeNonce))
+    const idPriv = await peerId.createFromPrivKey(Buffer.from(input.Session.getPrivateKey(), 'base64')) //get the private key
+    const sessionStr = await sessionUtils.getSessionSignature(input)
 
     searchParams.append("arg", input.SessionId)
-    searchParams.append("arg", input.PeerID)
+    searchParams.append("arg", input.Session.getPeerId())
     searchParams.append("arg", input.TimeNonce)
-    searchParams.append("arg" , await idPriv.privKey.sign(sessionBuff))
+    searchParams.append("arg", sessionStr)
     searchParams.append("arg", input.SessionStatus)
 
     const res = await ky.ndjson('storage/upload/getunsigned', {

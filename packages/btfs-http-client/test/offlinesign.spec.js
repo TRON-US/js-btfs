@@ -8,6 +8,7 @@ const all = require('it-all')
 const testfile = loadFixture('test/fixtures/testfile.txt')
 const f = require('./utils/factory')()
 const btfsClient = require('../src')
+const apiSession = require("../src/session/session")
 
 let btfs
 let time
@@ -16,6 +17,11 @@ let sessionId
 let contracts
 
 describe('.offlineSign', () => {
+
+  const PeerID = "16Uiu2HAm5KyUqXm7gZb5ECj4vDWVVjVuzNoj7cNM3Q7Eoz5Vsj2D"
+  const PrivKey = "CAISIAHU0I1KRRe0LvFEXXaIOT9aDa3RTSUc488JmHj4kCbW"
+  var session = new apiSession(PrivKey, PeerID)
+
   before(async function () {
     btfs = btfsClient('http://127.0.0.1:5001/api/v0/')
     time = Date.now()
@@ -38,8 +44,7 @@ describe('.offlineSign', () => {
     var upOpts = {
       Hash: expectedMultihash,
       TimeNonce: time,
-      PeerID : "16Uiu2HAm5KyUqXm7gZb5ECj4vDWVVjVuzNoj7cNM3Q7Eoz5Vsj2D",
-      PrivKey: "CAISIAHU0I1KRRe0LvFEXXaIOT9aDa3RTSUc488JmHj4kCbW"
+      Session: session
     }
 
     var s = { s: `16Uiu2HAmRfbc8E4ungNn3FWqhrKVbXotRLNk8fodgpcUeUP6nw83,16Uiu2HAmRfbc8E4ungNn3FWqhrKVbXotRLNk8fodgpcUeUP6nw83` }

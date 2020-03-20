@@ -5,8 +5,11 @@ const toCamel = require('../lib/object-to-camel')
 const protoGuard = require('../../protos/guard_pb')
 const protoEscrow = require('../../protos/escrow_pb')
 const protoLedger = require('../../protos/ledger_pb')
+const sessionUtils = require("../session/session-utils")
+
 const peerId = require('peer-id')
 var EC = require('elliptic').ec
+
 
 function bnToBuf(bn) {
   var hex = BigInt(bn).toString(16)
@@ -58,7 +61,6 @@ var signBalanceContract = function (privKey) {
 var signPayChanContract = function (privKey, unsigned, totalPrice) {
   return new Promise(async (resolve, reject) => {
     const cryptoKeys = require('libp2p-crypto/src/keys')
-    const libp2pCrypto = require('libp2p-crypto')
 
     const idPriv = await peerId.createFromPrivKey(Buffer.from(privKey, 'base64')) //get the private key
     var pubKeyBytes = idPriv._pubKey.bytes //get byte array of public key
@@ -112,26 +114,20 @@ var signGuardSignContract = function (privKey, unsigned) {
   })
 }
 
-function sessionSignature(peerId, hash, time) {
-  return peerId + ":" + hash + ":" + time.toString()
-}
-
 module.exports = configure((ky) => {
   return async function* sign(input, options) {
-    //BTFS-1437
     options = options || {}
-    var privKey = input.PrivKey
+    var privKey = input.Session.getPrivateKey()
 
     const searchParams = new URLSearchParams(options.searchParams)
-    const idPriv = await peerId.createFromPrivKey(Buffer.from(privKey, 'base64')) //get the private key
-    const sessionBuff = Buffer.from(sessionSignature(input.PeerID, input.Hash, input.TimeNonce))
+    const sessionStr = await sessionUtils.getSessionSignature(input)
 
     searchParams.append("arg", input.SessionId)
-    searchParams.append("arg", input.PeerID)
+    searchParams.append("arg", input.Session.getPeerId())
     searchParams.append("arg", input.TimeNonce)
-    searchParams.append("arg", await idPriv.privKey.sign(sessionBuff))
+    searchParams.append("arg", sessionStr)
 
-    //sign input here with private key
+    //sign input here with` private key
     if (privKey != null) {
       //get contracts from input
       var unsigned = input.Unsigned

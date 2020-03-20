@@ -3,10 +3,7 @@
 const configure = require('../lib/configure')
 const toCamel = require('../lib/object-to-camel')
 const peerId = require('peer-id')
-
-function sessionSignature(peerId, hash, time) {
-  return peerId + ":" + hash + ":" + time.toString()
-}
+const sessionUtils = require('../session/session-utils')
 
 module.exports = configure((api) => {
   return async function * upload (input, options = {}) {
@@ -14,17 +11,17 @@ module.exports = configure((api) => {
     options = options || {}
 
     const searchParams = new URLSearchParams(options.searchParams)
-    var privKey = input.PrivKey
-    const idPriv = await peerId.createFromPrivKey(Buffer.from(privKey, 'base64')) //get the private key
+    var offlinePeerSessionSignature = await sessionUtils.newSessionSignature(input,false)
 
     searchParams.append("arg", input.Hash)
-    searchParams.append("arg", input.PeerID)
+    searchParams.append("arg", input.Session.getPeerId())
     searchParams.append("arg", input.TimeNonce)
-    searchParams.append("arg",  await idPriv.privKey.sign(Buffer.from(sessionSignature(input.PeerID, input.Hash, input.TimeNonce))))
-    searchParams.set('m', "custom")
-    searchParams.set('s', options.s.toString())
+    searchParams.append("arg", offlinePeerSessionSignature)
+    searchParams.append('m', "custom")
+    searchParams.append('s', options.s.toString())
 
     const res = api.ndjson( 'storage/upload/offline', {
+      method: 'POST',
       timeout: options.timeout,
       signal: options.signal,
       headers: options.headers,

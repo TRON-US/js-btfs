@@ -2,19 +2,21 @@
 const React = require('react')
 const btfsClient = require('../../../../btfs-http-client/src/index')
 const config = require("../config")
-
+const session = require("../../../src/session/session")
 var errorCount = 0
 
 class App extends React.Component {
   //BTFS-1437
   constructor () {
     super()
+
     this.state = {
       added_file_hash: null,
       added_session_id:  null,
       added_session_status: null,
       added_session_contracts: null,
       added_status_response: null,
+      added_session: new session(config.PrivKey, config.PeerID),
     }
 
     this.btfs = btfsClient('/ip4/127.0.0.1/tcp/5001')
@@ -54,8 +56,7 @@ class App extends React.Component {
       {
         Hash: this.state.added_file_hash,
         TimeNonce: this.time.toString(),
-        PrivKey: config.PrivKey,
-        PeerID: config.PeerID
+        Session: this.state.added_session
       },
       { s: `16Uiu2HAmRfbc8E4ungNn3FWqhrKVbXotRLNk8fodgpcUeUP6nw83,16Uiu2HAmRfbc8E4ungNn3FWqhrKVbXotRLNk8fodgpcUeUP6nw83` }
     )
@@ -110,9 +111,7 @@ class App extends React.Component {
       Hash: this.state.added_file_hash,
       Unsigned: data,
       TimeNonce: this.time,
-      PrivKey: config.PrivKey,
-      PeerID: config.PeerID
-
+      Session: this.state.added_session
     }
     const signResponse = this.btfs.sign(input, {})
     try {
@@ -129,8 +128,7 @@ class App extends React.Component {
       SessionStatus: this.state.added_session_status,
       Hash: this.state.added_file_hash,
       TimeNonce: this.time,
-      PrivKey: config.PrivKey,
-      PeerID: config.PeerID
+      Session: this.state.added_session
     }
     const batchResponse = this.btfs.getBatch(input, {})
     try {
@@ -151,8 +149,7 @@ class App extends React.Component {
       SessionStatus: this.state.added_session_status,
       Hash: this.state.added_file_hash,
       TimeNonce: this.time,
-      PrivKey: config.PrivKey,
-      PeerID: config.PeerID
+      Session: this.state.added_session
     }
     const unsignedDataResponse = this.btfs.getUnsigned(input, {})
     try {
