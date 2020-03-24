@@ -8,7 +8,7 @@ const homedir = require('homedir')
 const filePath = ['guard', 'ledger', 'escrow']
 
 async function downloader(folder) {
-  const dir = path.join(homedir(), 'go-btfs-common', 'master', 'js', 'protos', folder)
+  const dir = path.join(homedir(), 'js-btfs-common', 'master', 'js', 'protos', folder)
   let filePath = path.join(dir, `${folder}_pb.js`)
   await fs.ensureDir(path.join(dir))
   const url = `https://tron-us.github.io/go-btfs-common/js/protos/${folder}/${folder}_pb.js`
