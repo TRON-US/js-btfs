@@ -1,10 +1,13 @@
 'use strict'
 
+const homedir = require('homedir')
 const configure = require('../lib/configure')
 const toCamel = require('../lib/object-to-camel')
-const protoGuard = require('../../protos/guard_pb')
-const protoEscrow = require('../../protos/escrow_pb')
-const protoLedger = require('../../protos/ledger_pb')
+const path = require('path')
+const protoGuard = require('../../js-btfs-common/master/js/protos/guard/guard_pb')
+const protoEscrow = require('../../js-btfs-common/master/js/protos/escrow/escrow_pb')
+const protoLedger = require('../../js-btfs-common/master/js/protos/ledger/ledger_pb')
+
 const sessionUtils = require("../session/session-utils")
 
 const peerId = require('peer-id')
@@ -61,9 +64,8 @@ var signBalanceContract = function (privKey) {
 var signPayChanContract = function (privKey, unsigned, totalPrice) {
   return new Promise(async (resolve, reject) => {
     const cryptoKeys = require('libp2p-crypto/src/keys')
-
     const idPriv = await peerId.createFromPrivKey(Buffer.from(privKey, 'base64')) //get the private key
-    var pubKeyBytes = idPriv._pubKey.bytes //get byte array of public key
+    //var pubKeyBytes = idPriv._pubKey.bytes //get byte array of public key
     var unsignedBytes = Buffer.from(unsigned, "base64")//unsignedBytes, err := stringToBytes(unsignedData.Unsigned, Base64)
     var escrowPubKey = await peerId.createFromPubKey(unsignedBytes) //escrowPubKey, err := ic.UnmarshalPublicKey(unsignedBytes)
     const pubKey = await cryptoKeys.unmarshalPublicKey(escrowPubKey._pubKey.bytes,cryptoKeys.keysPBM.KeyType.Secp256k1)

@@ -2,8 +2,8 @@
 
 const configure = require('../lib/configure')
 const toCamel = require('../lib/object-to-camel')
-const protoGuard = require('../../protos/guard_pb')
-const protoEscrow = require('../../protos/escrow_pb')
+const protoGuard = require('../../js-btfs-common/master/js/protos/guard/guard_pb')
+const protoEscrow = require('../../js-btfs-common/master/js/protos/escrow/escrow_pb')
 const peerId = require('peer-id')
 const sessionUtils = require("../session/session-utils")
 

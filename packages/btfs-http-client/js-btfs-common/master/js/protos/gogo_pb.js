@@ -8,11 +8,12 @@
  */
 // GENERATED CODE -- DO NOT EDIT!
 
-var jspb = require('./google-protobuf');
+var jspb = require('google-protobuf');
 var goog = jspb;
 var global = Function('return this')();
 
-var google_protobuf_descriptor_pb = require('./descriptor_pb.js');
+var google
+google_protobuf_descriptor_pb = require('google-protobuf/google/protobuf/descriptor_pb')
 goog.object.extend(proto, google_protobuf_descriptor_pb);
 goog.exportSymbol('proto.gogoproto.benchgen', null, global);
 goog.exportSymbol('proto.gogoproto.benchgenAll', null, global);
