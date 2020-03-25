@@ -45,9 +45,9 @@ class App extends React.Component {
   addStatus(status) {
     let div = document.getElementById('contractStatus')
     if (this.state.added_status_response != null){
-      div.innerHTML += "<h3>".concat(status).concat(": ").concat(this.state.added_status_response).concat("</h3>")
-    }else {
-      div.innerHTML += "<h3>".concat(status).concat("</h3>")
+      div.innerHTML +=`<h3>${status}:${this.state.added_status_response}</h3>`
+    } else {
+      div.innerHTML += `<h3>${status}</h3>`
     }
   }
 
@@ -58,7 +58,7 @@ class App extends React.Component {
         TimeNonce: this.time.toString(),
         Session: this.state.added_session
       },
-      { s: `16Uiu2HAmRfbc8E4ungNn3FWqhrKVbXotRLNk8fodgpcUeUP6nw83,16Uiu2HAmRfbc8E4ungNn3FWqhrKVbXotRLNk8fodgpcUeUP6nw83` }
+      { s: "16Uiu2HAmRfbc8E4ungNn3FWqhrKVbXotRLNk8fodgpcUeUP6nw83,16Uiu2HAmRfbc8E4ungNn3FWqhrKVbXotRLNk8fodgpcUeUP6nw83" }
     )
     try {
       for await (const resp of response) {
@@ -187,13 +187,13 @@ class App extends React.Component {
           break
         case "initSignReadyGuard":
           this.addStatus(this.state.added_session_status)
-          this.getBatch(event)
+          await this.getBatch(event)
           break
         case "balanceSignReady":
         case "payChannelSignReady":
         case "payRequestSignReady":
         case "guardSignReady":
-          this.getUnsignedData(event)
+          await this.getUnsignedData(event)
           this.addStatus(this.state.added_session_status)
           break
         case "init":

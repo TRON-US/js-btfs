@@ -5,15 +5,17 @@ const path = require('path')
 const fs = require('fs-extra')
 const homedir = require('homedir')
 
-
-const filePath = ['guard', 'ledger', 'escrow']
-
 async function downloader(folder) {
   const dir = path.join(__dirname+"/../", 'js-btfs-common', 'master', 'js', 'protos', folder)
-  console.log(dir)
   let filePath = path.join(dir, `${folder}_pb.js`)
   await fs.ensureDir(path.join(dir))
-  const url = `https://tron-us.github.io/go-btfs-common/js/protos/${folder}/${folder}_pb.js`
+  let url
+  if (folder == "gogo") {
+    url = `https://tron-us.github.io/protobuf/gogoproto/${folder}_pb.js`
+  }else {
+    url = `https://tron-us.github.io/go-btfs-common/js/protos/${folder}/${folder}_pb.js`
+  }
+
   const res = await req.get(url).responseType('blob')
   if (res && res.body) {
     await fs.writeFile(path.resolve(dir, `${folder}_pb.js`), res.body)
@@ -29,6 +31,7 @@ async function downloader(folder) {
 }
 
 async function processor() {
+  const filePath = ['guard', 'ledger', 'escrow', 'gogo']
   for ( var i = 0 ; i < filePath.length ; i++ ){
     await downloader(filePath[i])
   }
