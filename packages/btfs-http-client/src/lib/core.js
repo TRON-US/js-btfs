@@ -6,7 +6,7 @@ const { isBrowser, isWebWorker } = require('ipfs-utils/src/env')
 const { URL } = require('iso-url')
 const parseDuration = require('parse-duration')
 const log = require('debug')('ipfs-http-client:lib:error-handler')
-const HTTP = require('ipfs-utils/src/http')
+const HTTP = require('../../../ipfs-utils/src/http')
 
 const isMultiaddr = (input) => {
   try {

@@ -34,6 +34,7 @@
     "test:firefox": "cross-env ECHO_SERVER_PORT=37497 aegir test -t browser -t webworker -- --browsers FirefoxHeadless",
     "lint": "aegir lint",
     "build": "aegir build",
+    "update-js-btfs-commons": "./dloaddeps.sh",
     "coverage": "npx nyc -r html npm run test:node -- --bail",
     "clean": "rm -rf ./dist",
     "dep-check": "aegir dep-check"
@@ -43,9 +44,16 @@
     "bignumber.js": "^9.0.0",
     "bs58": "^4.0.1",
     "buffer": "^5.4.2",
+    "build": "^0.1.4",
     "cids": "^0.7.3",
+    "configure": "0.0.1",
     "debug": "^4.1.0",
     "form-data": "^3.0.0",
+    "github.com": "^1.0.0",
+    "go": "^3.0.1",
+    "google-protobuf": "^3.11.4",
+    "homedir": "^0.6.0",
+    "https": "^1.0.0",
     "ipfs-block": "^0.8.1",
     "ipfs-utils": "^0.7.2",
     "ipld-dag-cbor": "^0.15.1",
@@ -61,8 +69,11 @@
     "multicodec": "^1.0.0",
     "multihashes": "^0.4.14",
     "node-fetch": "^2.6.0",
+    "node-gyp": "^6.1.0",
     "parse-duration": "^0.1.2",
-    "stream-to-it": "^0.2.0"
+    "request": "^2.81.0",
+    "stream-to-it": "^0.2.0",
+    "superagent": "^5.2.2"
   },
   "devDependencies": {
     "aegir": "^21.3.0",

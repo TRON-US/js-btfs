@@ -11,7 +11,9 @@
   ],
   "license": "MIT",
   "dependencies": {
-    "ipfs-http-client": "../.."
+    "homedir": "^0.6.0",
+    "ipfs-http-client": "../..",
+    "ipfs-utils": "^0.7.2"
   },
   "devDependencies": {
     "react": "^16.6.3",

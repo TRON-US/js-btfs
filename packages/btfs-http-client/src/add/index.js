@@ -28,7 +28,6 @@ module.exports = configure((api) => {
 
     for await (let file of res) {
       file = toCamel(file)
-
       if (progressFn && file.bytes) {
         progressFn(file.bytes)
       } else {

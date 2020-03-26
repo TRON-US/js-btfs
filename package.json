@@ -203,5 +203,8 @@
     "ethers <ethereum@outlook.com>",
     "hapsody <hapsody@gmail.com>",
     "isan_rivkin <isanrivkin@gmail.com>"
-  ]
+  ],
+  "dependencies": {
+    "ipfs-utils": "file:packages/ipfs-utils"
+  }
 }

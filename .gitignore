@@ -26,3 +26,12 @@ docs
 
 # Editor files
 .vscode
+
+# Example
+examples
+
+#config file
+packages/btfs-http-client/examples/upload-file-via-browser/config.json
+
+
+
