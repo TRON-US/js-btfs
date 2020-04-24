@@ -48,6 +48,7 @@
     "cids": "^0.7.3",
     "configure": "0.0.1",
     "debug": "^4.1.0",
+    "elliptic": "^6.5.2",
     "form-data": "^3.0.0",
     "github.com": "^1.0.0",
     "go": "^3.0.1",
@@ -62,6 +63,7 @@
     "iso-url": "^0.4.6",
     "it-tar": "^1.2.1",
     "it-to-stream": "^0.1.1",
+    "libp2p-crypto": "^0.17.6",
     "merge-options": "^2.0.0",
     "multiaddr": "^7.2.1",
     "multiaddr-to-uri": "^5.1.0",
@@ -71,6 +73,7 @@
     "node-fetch": "^2.6.0",
     "node-gyp": "^6.1.0",
     "parse-duration": "^0.1.2",
+    "peer-id": "^0.13.11",
     "request": "^2.81.0",
     "stream-to-it": "^0.2.0",
     "superagent": "^5.2.2"

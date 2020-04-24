@@ -7,20 +7,19 @@ const protoEscrow = require('../../js-btfs-common/master/js/protos/escrow/escrow
 const peerId = require('peer-id')
 const sessionUtils = require("../session/session-utils")
 
-var signContract = function (privKey, contract, sessionStatus) {
+var signContract = function (privKey, contract, type) {
   return new Promise(async (resolve, reject) => {
-      var by = Buffer.from(contract,'base64') // contract in string <- 1. OK
-      const id = await peerId.createFromPrivKey(Buffer.from(privKey, 'base64'))
-      let raw
-      if (sessionStatus == 'initSignReadyEscrow' || sessionStatus == "initSignProcessEscrow"){
-          raw = proto.escrow.EscrowContract.deserializeBinary(by).serializeBinary()
-      }
-      else if (sessionStatus == 'initSignReadyGuard' || sessionStatus == "initSignProcessGuard") {
-          raw = proto.guard.ContractMeta.deserializeBinary(by).serializeBinary()
-      }
-     const signature = await id.privKey.sign(Buffer.from(raw,'base64'))
-     var signC = (signature.toString('base64'))
-     resolve(signC)
+    var by = Buffer.from(contract,'base64') // contract in string <- 1. OK
+    const id = await peerId.createFromPrivKey(Buffer.from(privKey, 'base64'))
+    let raw
+    if (type == 'escrow'){
+      raw = proto.escrow.EscrowContract.deserializeBinary(by).serializeBinary()
+    } else if (type == 'guard') {
+      raw = proto.guard.ContractMeta.deserializeBinary(by).serializeBinary()
+    }
+    const signature = await id.privKey.sign(Buffer.from(raw,'base64'))
+    var signC = (signature.toString('base64'))
+    resolve(signC)
   })
 }
 
@@ -36,7 +35,7 @@ module.exports = configure((ky) => {
     searchParams.append("arg", input.Session.getPeerId())
     searchParams.append("arg", input.TimeNonce)
     searchParams.append("arg", sessionStr)
-    searchParams.append("arg", input.SessionStatus)
+    searchParams.append("arg", input.Type)
 
     var contracts = input.Contracts
 
@@ -44,7 +43,7 @@ module.exports = configure((ky) => {
     if (input.Session.getPrivateKey() != null) {
       //get contracts from input
       for (var i = 0 ; i < contracts.length ; i++) {
-          input.Contracts[i].contract = await signContract(input.Session.getPrivateKey(), input.Contracts[i].contract, input.SessionStatus)
+          input.Contracts[i].contract = await signContract(input.Session.getPrivateKey(), input.Contracts[i].contract, input.Type)
       }
       //add signed contracts to the searchParams
       searchParams.append("arg", JSON.stringify(input.Contracts))
