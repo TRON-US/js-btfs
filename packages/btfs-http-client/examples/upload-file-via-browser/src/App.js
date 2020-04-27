@@ -7,12 +7,12 @@ var errorCount = 0
 
 class App extends React.Component {
   //BTFS-1437
-  constructor () {
+  constructor() {
     super()
 
     this.state = {
       added_file_hash: null,
-      added_session_id:  null,
+      added_session_id: null,
       added_session_status: null,
       added_session_contracts: null,
       added_status_response: null,
@@ -38,14 +38,14 @@ class App extends React.Component {
 
   }
 
-  setTime(){
+  setTime() {
     this.time = Date.now()
   }
 
   addStatus(status) {
     let div = document.getElementById('contractStatus')
-    if (this.state.added_status_response != null){
-      div.innerHTML +=`<h3>${status}:${this.state.added_status_response}</h3>`
+    if (this.state.added_status_response != null) {
+      div.innerHTML += `<h3>${status}:${this.state.added_status_response}</h3>`
     } else {
       div.innerHTML += `<h3>${status}</h3>`
     }
@@ -58,11 +58,11 @@ class App extends React.Component {
         TimeNonce: this.time.toString(),
         Session: this.state.added_session
       },
-      { s: "16Uiu2HAmRfbc8E4ungNn3FWqhrKVbXotRLNk8fodgpcUeUP6nw83,16Uiu2HAmRfbc8E4ungNn3FWqhrKVbXotRLNk8fodgpcUeUP6nw83" }
+      {s: "16Uiu2HAmRfbc8E4ungNn3FWqhrKVbXotRLNk8fodgpcUeUP6nw83,16Uiu2HAmRfbc8E4ungNn3FWqhrKVbXotRLNk8fodgpcUeUP6nw83"}
     )
     try {
       for await (const resp of response) {
-        this.setState({ added_session_id: resp.ID })
+        this.setState({added_session_id: resp.ID})
       }
     } catch (err) {
       console.error(err)
@@ -72,17 +72,17 @@ class App extends React.Component {
 
   // Example #1
   // Add file to IPFS and return a CID
-  async saveToIpfs (files) {
+  async saveToIpfs(files) {
     const source = this.btfs.add(
       [...files],
       {
         progress: (prog) => console.log(`received: ${prog}`),
-        chunker : "reed-solomon-1-1-256000"
+        chunker: "reed-solomon-1-1-256000"
       }
     )
     try {
       for await (const file of source) {
-        this.setState({ added_file_hash: file.path })
+        this.setState({added_file_hash: file.path})
       }
     } catch (err) {
       console.error(err)
@@ -90,14 +90,14 @@ class App extends React.Component {
   }
 
   async getStatus(event) {
-    let input  = {
+    let input = {
       SessionId: this.state.added_session_id,
     }
     const statusResponse = this.btfs.statusSign(input, {})
     try {
       for await (const response of statusResponse) {
-        this.setState({ added_session_status:  response.Status })
-        this.setState({ added_status_response:  response.Message })
+        this.setState({added_session_status: response.Status})
+        this.setState({added_status_response: response.Message})
       }
     } catch (err) {
       console.error(err)
@@ -105,7 +105,7 @@ class App extends React.Component {
   }
 
   async sign(event, data) {
-    let input  = {
+    let input = {
       SessionId: this.state.added_session_id,
       SessionStatus: this.state.added_session_status,
       Hash: this.state.added_file_hash,
@@ -122,20 +122,26 @@ class App extends React.Component {
     }
   }
 
-  async getBatch(event) {
-    let input  = {
+  async getBatch(type) {
+    let input = {
       SessionId: this.state.added_session_id,
       SessionStatus: this.state.added_session_status,
       Hash: this.state.added_file_hash,
       TimeNonce: this.time,
-      Session: this.state.added_session
+      Session: this.state.added_session,
+      Type: type
     }
     const batchResponse = this.btfs.getBatch(input, {})
     try {
       for await (const response of batchResponse) {
+        await new Promise(r => setTimeout(r, 2000));
         input.Contracts = (response).Contracts
+        if (input.Contracts.length == 0) {
+          continue
+        }
         const signBatchResponse = await this.btfs.signBatch(input, {})
-        for await (const response of signBatchResponse ){
+        console.log("signBatchResponse", signBatchResponse)
+        for await (const response of signBatchResponse) {
         }
       }
     } catch (err) {
@@ -144,7 +150,7 @@ class App extends React.Component {
   }
 
   async getUnsignedData(event) {
-    let input  = {
+    let input = {
       SessionId: this.state.added_session_id,
       SessionStatus: this.state.added_session_status,
       Hash: this.state.added_file_hash,
@@ -158,7 +164,7 @@ class App extends React.Component {
         input.Opcode = response.Opcode
         input.Price = response.Price
         const unsignedDataResponse = await this.btfs.sign(input, {}, {})
-        for await (const response of unsignedDataResponse ){
+        for await (const response of unsignedDataResponse) {
         }
       }
     } catch (err) {
@@ -169,7 +175,7 @@ class App extends React.Component {
   displayStatus(event) {
     this.statusTimer = setInterval(() => {
       this.getStatus(event)
-      if (errorCount > 9){
+      if (errorCount > 9) {
         //after 10 error, cancel both timers
         clearTimeout(this.statusTimer)
         clearTimeout(this.stateTimer)
@@ -178,25 +184,19 @@ class App extends React.Component {
 
     this.stateTimer = setInterval(async () => {
       switch (this.state.added_session_status) {
-        case "uninitialized":
-          this.addStatus(this.state.added_session_status)
-          break
-        case "initSignReadyEscrow":
-          this.addStatus(this.state.added_session_status)
-          await this.getBatch(event)
-          break
-        case "initSignReadyGuard":
-          this.addStatus(this.state.added_session_status)
-          await this.getBatch(event)
-          break
-        case "balanceSignReady":
-        case "payChannelSignReady":
-        case "payRequestSignReady":
-        case "guardSignReady":
-          await this.getUnsignedData(event)
-          this.addStatus(this.state.added_session_status)
-          break
         case "init":
+          this.addStatus(this.state.added_session_status)
+          await this.getBatch("escrow")
+          await this.getBatch("guard")
+          break
+        case "submit":
+        case "submit:check-balance-req-singed":
+        case "pay":
+        case "pay:payin-req-signed":
+        case "guard":
+        case "guard:file-meta-signed":
+        case "wait-upload":
+          await this.getUnsignedData(event)
           this.addStatus(this.state.added_session_status)
           break
         case "complete":
@@ -218,7 +218,7 @@ class App extends React.Component {
     }, 3000)
   }
 
-  captureFile (event) {
+  captureFile(event) {
     event.stopPropagation()
     event.preventDefault()
     if (document.getElementById('keepFilename').checked) {
@@ -230,7 +230,7 @@ class App extends React.Component {
 
   // Example #2
   // Add file to BTFS and wrap it in a directory to keep the original filename
-  saveToIpfsWithFilename (files) {
+  saveToIpfsWithFilename(files) {
     const file = [...files][0]
     let btfsId
     const fileDetails = {
@@ -240,13 +240,13 @@ class App extends React.Component {
     const options = {
       wrapWithDirectory: true,
       progress: (prog) => console.log(`received: ${prog}`),
-      chunker : "reed-solomon-1-1-256000"
+      chunker: "reed-solomon-1-1-256000"
     }
     this.btfs.add(fileDetails, options)
       .then((response) => {
         // CID of wrapping directory is returned last
         btfsId = response[response.length - 1].hash
-        this.setState({ added_file_hash: btfsId })
+        this.setState({added_file_hash: btfsId})
         errorCount = 0
         this.setTime()
       }).catch((err) => {
@@ -254,12 +254,12 @@ class App extends React.Component {
     })
   }
 
-  handleSubmit (event) {
+  handleSubmit(event) {
     event.preventDefault()
   }
 
 
-  render () {
+  render() {
     return (
       <div>
         <form id="myKeys" onSubmit={this.handleSubmit}>
@@ -286,4 +286,5 @@ class App extends React.Component {
     )
   }
 }
+
 module.exports = App

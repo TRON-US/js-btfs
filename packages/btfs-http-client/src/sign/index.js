@@ -116,6 +116,30 @@ var signGuardSignContract = function (privKey, unsigned) {
   })
 }
 
+var signGuardQuestions = function (privKey, unsigned) {
+  return new Promise(async (resolve, reject) => {
+    var unsignedBytes = Buffer.from(unsigned, "base64")
+    var meta = proto.guard.FileChallengeQuestions.deserializeBinary(unsignedBytes)
+    const idPriv = await peerId.createFromPrivKey(Buffer.from(privKey, 'base64')) //get the private key
+    for (var i = 0 ; i < meta.getShardQuestionsList().length ; i++) {
+      console.log("[i]",meta.getShardQuestionsList()[i])
+      var signed = await idPriv.privKey.sign(meta.getShardQuestionsList()[i].serializeBinary())
+      meta.getShardQuestionsList()[i].setPreparerSignature(signed)
+    }
+    resolve (meta.serializeBinary())
+  })
+}
+
+var signWaituploadReq = function (privKey, unsigned) {
+  return new Promise(async (resolve, reject) => {
+    var unsignedBytes = Buffer.from(unsigned, "base64")
+    var meta = proto.guard.CheckFileStoreMetaRequest.deserializeBinary(unsignedBytes)
+    const idPriv = await peerId.createFromPrivKey(Buffer.from(privKey, 'base64')) //get the private key
+    var signed = await idPriv.privKey.sign(meta.serializeBinary())
+    resolve (signed)
+  })
+}
+
 module.exports = configure((ky) => {
   return async function* sign(input, options) {
     options = options || {}
@@ -135,25 +159,31 @@ module.exports = configure((ky) => {
       var unsigned = input.Unsigned
       let signedBytes
 
-      switch (input.Opcode) {
-        case "balance" :
+      switch (input.SessionStatus) {
+        case "submit" :
           //sign contract
           signedBytes = await signBalanceContract(privKey)
           break
-        case "paychannel" :
+        case "submit:check-balance-req-singed" :
           signedBytes = await signPayChanContract(privKey, unsigned,input.Price)
           break
-        case "payrequest" :
+        case "pay" :
           signedBytes = await signPayRequestContract(privKey, unsigned)
           break
         case "guard":
           signedBytes = await signGuardSignContract(privKey, unsigned)
           break
+        case "guard:file-meta-signed":
+          signedBytes = await signGuardQuestions(privKey, unsigned)
+          break
+        case "wait-upload":
+          signedBytes = await signWaituploadReq(privKey, unsigned)
+          break
       }
 
       //add signed contracts to the searchParams
-      searchParams.append("arg", btoa(String.fromCharCode.apply(null, signedBytes)))
       searchParams.append("arg", input.SessionStatus)
+      searchParams.append("arg", btoa(String.fromCharCode.apply(null, signedBytes)))
 
       let res
       yield res = await ky.ndjson('storage/upload/sign', {

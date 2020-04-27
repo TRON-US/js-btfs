@@ -28,7 +28,7 @@ const normalizeInput = (options = {}) => {
   if (options.apiPath) {
     url.pathname = options.apiPath
   } else if (url.pathname === '/' || url.pathname === undefined) {
-    url.pathname = 'api/v0'
+    url.pathname = 'api/v1'
   }
   if (!options.url) {
     if (isBrowser || isWebWorker) {

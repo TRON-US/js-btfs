@@ -17,7 +17,7 @@ module.exports = configure(( ky ) => {
     searchParams.append("arg", input.Session.getPeerId())
     searchParams.append("arg", input.TimeNonce)
     searchParams.append("arg",sessionStr)
-    searchParams.append("arg", input.SessionStatus)
+    searchParams.append("arg", input.Type)
 
     const res = await ky.ndjson('storage/upload/getcontractbatch', {
       method: 'POST',

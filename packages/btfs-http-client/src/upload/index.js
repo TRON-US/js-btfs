@@ -17,10 +17,8 @@ module.exports = configure((api) => {
     searchParams.append("arg", input.Session.getPeerId())
     searchParams.append("arg", input.TimeNonce)
     searchParams.append("arg", offlinePeerSessionSignature)
-    searchParams.append('m', "custom")
-    searchParams.append('s', options.s.toString())
 
-    const res = api.ndjson( 'storage/upload/offline', {
+    const res = api.ndjson( 'storage/upload', {
       method: 'POST',
       timeout: options.timeout,
       signal: options.signal,
