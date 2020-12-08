@@ -1,7 +1,7 @@
 /* eslint-env mocha */
 'use strict'
 
-const { expect } = require('interface-ipfs-core/src/utils/mocha')
+const { expect } = require('aegir/utils/chai')
 const nock = require('nock')
 const ipfsClient = require('../../src')
 
@@ -70,7 +70,7 @@ describe('.swarm.peers', function () {
       .query(true)
       .replyWithError('something awful happened')
 
-    await expect(ipfs.swarm.peers()).to.be.rejectedWith('something awful happened')
+    await expect(ipfs.swarm.peers()).to.eventually.be.rejectedWith('something awful happened')
 
     expect(scope.isDone()).to.equal(true)
   })

@@ -1,21 +1,26 @@
 'use strict'
 
-const modeToString = require('../lib/mode-to-string')
 const configure = require('../lib/configure')
+const toUrlSearchParams = require('../lib/to-url-search-params')
 
 module.exports = configure(api => {
-  return async function chmod (path, mode, options = {}) {
-    options.arg = path
-    options.mode = modeToString(mode)
-    options.hash = options.hashAlg
-    options.hashAlg = null
-
+  /**
+   * @type {import('..').Implements<typeof import('ipfs-core/src/components/files/chmod')>}
+   */
+  async function chmod (path, mode, options = {}) {
     const res = await api.post('files/chmod', {
       timeout: options.timeout,
       signal: options.signal,
-      searchParams: options
+      searchParams: toUrlSearchParams({
+        arg: path,
+        mode,
+        ...options
+      }),
+      headers: options.headers
     })
 
-    return res.text()
+    await res.text()
   }
+
+  return chmod
 })

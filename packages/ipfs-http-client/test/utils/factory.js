@@ -5,7 +5,7 @@ const merge = require('merge-options')
 const { isNode } = require('ipfs-utils/src/env')
 
 const commonOptions = {
-  test: 'true',
+  test: true,
   type: 'go',
   ipfsHttpModule: require('../../src'),
   endpoint: 'http://localhost:48372'
@@ -13,7 +13,7 @@ const commonOptions = {
 
 const commonOverrides = {
   go: {
-    ipfsBin: isNode ? require('go-ipfs-dep').path() : undefined
+    ipfsBin: isNode ? require('go-ipfs').path() : undefined
   }
 }
 

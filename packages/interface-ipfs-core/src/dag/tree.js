@@ -1,11 +1,15 @@
 /* eslint-env mocha */
 'use strict'
 
+const uint8ArrayFromString = require('uint8arrays/from-string')
 const dagPB = require('ipld-dag-pb')
 const DAGNode = dagPB.DAGNode
 const dagCBOR = require('ipld-dag-cbor')
 const all = require('it-all')
+const drain = require('it-drain')
 const { getDescribe, getIt, expect } = require('../utils/mocha')
+const CID = require('cids')
+const testTimeout = require('../utils/test-timeout')
 
 /** @typedef { import("ipfsd-ctl/src/factory") } Factory */
 /**
@@ -29,7 +33,7 @@ module.exports = (common, options) => {
     let cidCbor
 
     before(async function () {
-      nodePb = new DAGNode(Buffer.from('I am inside a Protobuf'))
+      nodePb = new DAGNode(uint8ArrayFromString('I am inside a Protobuf'))
       cidPb = await dagPB.util.cid(nodePb.serialize())
 
       nodeCbor = {
@@ -42,6 +46,12 @@ module.exports = (common, options) => {
       await ipfs.dag.put(nodeCbor, { format: 'dag-cbor', hashAlg: 'sha2-256' })
     })
 
+    it('should respect timeout option when resolving a DAG tree', () => {
+      return testTimeout(() => drain(ipfs.dag.tree(new CID('QmPv52ekjS75L4JmHpXVeuJ5uX2ecSfSZo88NSyxwA3rA8'), {
+        timeout: 1
+      })))
+    })
+
     it('should get tree with CID', async () => {
       const paths = await all(ipfs.dag.tree(cidCbor))
       expect(paths).to.eql([
@@ -51,14 +61,9 @@ module.exports = (common, options) => {
     })
 
     it('should get tree with CID and path', async () => {
-      const paths = await all(ipfs.dag.tree(cidCbor, 'someData'))
-      expect(paths).to.eql([])
-    })
-
-    it('should get tree with CID and path as String', async () => {
-      const cidCborStr = cidCbor.toBaseEncodedString()
-
-      const paths = await all(ipfs.dag.tree(cidCborStr + '/someData'))
+      const paths = await all(ipfs.dag.tree(cidCbor, {
+        path: 'someData'
+      }))
       expect(paths).to.eql([])
     })
 
@@ -73,11 +78,19 @@ module.exports = (common, options) => {
     })
 
     it('should get tree with CID and path recursive', async () => {
-      const paths = await all(ipfs.dag.tree(cidCbor, 'pb', { recursive: true }))
+      const paths = await all(ipfs.dag.tree(cidCbor, {
+        path: 'pb',
+        recursive: true
+      }))
       expect(paths).to.have.members([
         'Links',
         'Data'
       ])
+    })
+
+    it('should throw error for invalid CID input', () => {
+      return expect(all(ipfs.dag.tree('INVALID CID')))
+        .to.eventually.be.rejected()
     })
   })
 }

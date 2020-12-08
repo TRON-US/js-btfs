@@ -3,17 +3,23 @@
 const { BigNumber } = require('bignumber.js')
 const CID = require('cids')
 const configure = require('../lib/configure')
+const toUrlSearchParams = require('../lib/to-url-search-params')
 
 module.exports = configure(api => {
-  return async (options = {}) => {
+  /**
+   * @type {import('..').Implements<typeof import('ipfs-core/src/components/bitswap/stat')>}
+   */
+  async function stat (options = {}) {
     const res = await api.post('bitswap/stat', {
-      searchParams: options,
+      searchParams: toUrlSearchParams(options),
       timeout: options.timeout,
-      signal: options.signal
+      signal: options.signal,
+      headers: options.headers
     })
 
     return toCoreInterface(await res.json())
   }
+  return stat
 })
 
 function toCoreInterface (res) {

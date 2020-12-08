@@ -1,20 +1,27 @@
 'use strict'
 
-const { Buffer } = require('buffer')
 const toIterable = require('stream-to-it/source')
 const configure = require('../lib/configure')
+const toUrlSearchParams = require('../lib/to-url-search-params')
 
 module.exports = configure(api => {
-  return async function * read (path, options = {}) {
-    options.arg = path
+  /**
+   * @type {import('..').Implements<typeof import('ipfs-core/src/components/files/read')>}
+   */
+  async function * read (path, options = {}) {
     const res = await api.post('files/read', {
       timeout: options.timeout,
       signal: options.signal,
-      searchParams: options
+      searchParams: toUrlSearchParams({
+        arg: path,
+        count: options.length,
+        ...options
+      }),
+      headers: options.headers
     })
 
-    for await (const chunk of toIterable(res.body)) {
-      yield Buffer.from(chunk)
-    }
+    yield * toIterable(res.body)
   }
+
+  return read
 })

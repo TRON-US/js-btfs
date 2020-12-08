@@ -1,28 +1,25 @@
 'use strict'
 
-const modeToString = require('../lib/mode-to-string')
-const mtimeToObject = require('../lib/mtime-to-object')
 const configure = require('../lib/configure')
+const toUrlSearchParams = require('../lib/to-url-search-params')
 
 module.exports = configure(api => {
-  return async (path, options = {}) => {
-    const mtime = mtimeToObject(options.mtime)
-
-    const searchParams = new URLSearchParams(options)
-    searchParams.set('arg', path)
-    searchParams.set('mode', modeToString(options.mode))
-    searchParams.set('hash', options.hashAlg)
-    searchParams.set('hashAlg', null)
-    if (mtime) {
-      searchParams.set('mtime', mtime.secs)
-      searchParams.set('mtimeNsecs', mtime.nsecs)
-    }
-
+  /**
+   * @type {import('..').Implements<typeof import('ipfs-core/src/components/files/mkdir')>}
+   */
+  async function mkdir (path, options = {}) {
     const res = await api.post('files/mkdir', {
       timeout: options.timeout,
       signal: options.signal,
-      searchParams
+      searchParams: toUrlSearchParams({
+        arg: path,
+        ...options
+      }),
+      headers: options.headers
     })
-    return res.text()
+
+    await res.text()
   }
+
+  return mkdir
 })

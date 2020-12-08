@@ -1,80 +1,91 @@
 {
   "name": "ipfs-http-client",
-  "version": "42.0.0",
+  "version": "48.1.2",
   "description": "A client library for the IPFS HTTP API",
   "keywords": [
     "ipfs"
   ],
-  "homepage": "https://github.com/ipfs/js-ipfs",
+  "homepage": "https://github.com/ipfs/js-ipfs/tree/master/packages/ipfs-http-client#readme",
   "bugs": "https://github.com/ipfs/js-ipfs/issues",
   "license": "(Apache-2.0 OR MIT)",
-  "leadMaintainer": "Alan Shaw <alan@tableflip.io>",
+  "leadMaintainer": "Alex Potsides <alex@achingbrain.net>",
   "files": [
     "src",
     "dist"
   ],
   "main": "src/index.js",
   "browser": {
-    "./src/add/form-data.js": "./src/add/form-data.browser.js",
-    "./src/lib/buffer-to-form-data.js": "./src/lib/buffer-to-form-data.browser.js",
-    "ipfs-utils/src/files/glob-source": false
+    "./src/lib/multipart-request.js": "./src/lib/multipart-request.browser.js",
+    "ipfs-utils/src/files/glob-source": false,
+    "go-ipfs": false,
+    "ipfs-core-utils/src/files/normalise-input": "ipfs-core-utils/src/files/normalise-input/index.browser.js"
+  },
+  "typesVersions": {
+    "*": {
+      "*": [
+        "dist/*",
+        "dist/*/index"
+      ]
+    }
   },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/ipfs/js-ipfs.git"
   },
   "scripts": {
-    "test": "cross-env ECHO_SERVER_PORT=37490 aegir test",
-    "test:node": "cross-env ECHO_SERVER_PORT=37491 aegir test -t node",
-    "test:browser": "cross-env ECHO_SERVER_PORT=37492 aegir test -t browser",
-    "test:webworker": "cross-env ECHO_SERVER_PORT=37493 aegir test -t webworker",
-    "test:electron-main": "cross-env ECHO_SERVER_PORT=37494 aegir test -t electron-main",
-    "test:electron-renderer": "cross-env ECHO_SERVER_PORT=37495 aegir test -t electron-renderer",
-    "test:chrome": "cross-env ECHO_SERVER_PORT=37496 aegir test -t browser -t webworker -- --browsers ChromeHeadless",
-    "test:firefox": "cross-env ECHO_SERVER_PORT=37497 aegir test -t browser -t webworker -- --browsers FirefoxHeadless",
+    "test": "aegir test",
+    "test:node": "aegir test -t node",
+    "test:browser": "aegir test -t browser",
+    "test:webworker": "aegir test -t webworker",
+    "test:electron-main": "aegir test -t electron-main",
+    "test:electron-renderer": "aegir test -t electron-renderer",
+    "test:chrome": "aegir test -t browser -t webworker -- --browsers ChromeHeadless",
+    "test:firefox": "aegir test -t browser -t webworker -- --browsers FirefoxHeadless",
     "lint": "aegir lint",
-    "build": "aegir build",
+    "build": "npm run build:js && npm run build:types",
+    "build:js": "aegir build",
+    "build:types": "tsc --build",
     "coverage": "npx nyc -r html npm run test:node -- --bail",
-    "clean": "rm -rf ./dist",
-    "dep-check": "aegir dep-check"
+    "clean": "rimraf ./dist",
+    "dep-check": "aegir dep-check -i typescript -i ipfs-core -i rimraf"
   },
   "dependencies": {
-    "abort-controller": "^3.0.0",
+    "any-signal": "^2.0.0",
     "bignumber.js": "^9.0.0",
-    "bs58": "^4.0.1",
-    "buffer": "^5.4.2",
-    "cids": "^0.7.3",
-    "debug": "^4.1.0",
+    "cids": "^1.0.0",
+    "debug": "^4.1.1",
     "form-data": "^3.0.0",
-    "ipfs-block": "^0.8.1",
-    "ipfs-utils": "^0.7.2",
-    "ipld-dag-cbor": "^0.15.1",
-    "ipld-dag-pb": "^0.18.3",
-    "ipld-raw": "^4.0.1",
-    "iso-url": "^0.4.6",
-    "it-tar": "^1.2.1",
-    "it-to-stream": "^0.1.1",
+    "ipfs-core-utils": "^0.5.3",
+    "ipfs-utils": "^5.0.0",
+    "ipld-block": "^0.11.0",
+    "ipld-dag-cbor": "^0.17.0",
+    "ipld-dag-pb": "^0.20.0",
+    "ipld-raw": "^6.0.0",
+    "it-last": "^1.0.4",
+    "it-map": "^1.0.4",
+    "it-tar": "^1.2.2",
+    "it-to-stream": "^0.1.2",
     "merge-options": "^2.0.0",
-    "multiaddr": "^7.2.1",
-    "multiaddr-to-uri": "^5.1.0",
-    "multibase": "^0.6.0",
-    "multicodec": "^1.0.0",
-    "multihashes": "^0.4.14",
-    "node-fetch": "^2.6.0",
-    "parse-duration": "^0.1.2",
-    "stream-to-it": "^0.2.0"
+    "multiaddr": "^8.0.0",
+    "multibase": "^3.0.0",
+    "multicodec": "^2.0.1",
+    "multihashes": "^3.0.1",
+    "nanoid": "^3.1.12",
+    "native-abort-controller": "~0.0.3",
+    "parse-duration": "^0.4.4",
+    "stream-to-it": "^0.2.2",
+    "uint8arrays": "^1.1.0"
   },
   "devDependencies": {
-    "aegir": "^21.3.0",
-    "browser-process-platform": "^0.1.1",
-    "cross-env": "^7.0.0",
-    "go-ipfs-dep": "0.4.23-3",
-    "interface-ipfs-core": "^0.132.0",
-    "ipfsd-ctl": "^3.0.0",
-    "it-all": "^1.0.1",
-    "it-concat": "^1.0.0",
-    "it-pipe": "^1.1.0",
-    "nock": "^11.7.2"
+    "aegir": "^28.2.0",
+    "go-ipfs": "^0.7.0",
+    "ipfs-core": "^0.3.0",
+    "ipfsd-ctl": "^7.0.2",
+    "it-all": "^1.0.4",
+    "it-concat": "^1.0.1",
+    "nock": "^13.0.2",
+    "rimraf": "^3.0.2",
+    "typescript": "4.0.x"
   },
   "engines": {
     "node": ">=10.3.0",
@@ -180,6 +191,7 @@
     "shunkin <hiyoko.san.ipod@gmail.com>",
     "victorbjelkholm <victorbjelkholm@gmail.com>",
     "Łukasz Magiera <magik6k@users.noreply.github.com>",
-    "Łukasz Magiera <magik6k@gmail.com>"
+    "Łukasz Magiera <magik6k@gmail.com>",
+    "Xmader <xmader@outlook.com>"
   ]
 }

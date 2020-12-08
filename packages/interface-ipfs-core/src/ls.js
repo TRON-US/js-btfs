@@ -4,6 +4,9 @@
 const { fixtures } = require('./utils')
 const { getDescribe, getIt, expect } = require('./utils/mocha')
 const all = require('it-all')
+const drain = require('it-drain')
+const CID = require('cids')
+const testTimeout = require('./utils/test-timeout')
 
 const randomName = prefix => `${prefix}${Math.round(Math.random() * 1000)}`
 
@@ -17,7 +20,7 @@ module.exports = (common, options) => {
   const it = getIt(options)
 
   describe('.ls', function () {
-    this.timeout(40 * 1000)
+    this.timeout(120 * 1000)
 
     let ipfs
 
@@ -26,6 +29,12 @@ module.exports = (common, options) => {
     })
 
     after(() => common.clean())
+
+    it('should respect timeout option when listing files', () => {
+      return testTimeout(() => drain(ipfs.ls(new CID('QmVvjDy7yF7hdnqE8Hrf4MHo5ABDtb5AbX6hWbD3Y42bXP'), {
+        timeout: 1
+      })))
+    })
 
     it('should ls with a base58 encoded CID', async function () {
       const content = (name) => ({
@@ -46,7 +55,7 @@ module.exports = (common, options) => {
         emptyDir('files/empty')
       ]
 
-      const res = await all(ipfs.add(dirs))
+      const res = await all(ipfs.addAll(dirs))
 
       const root = res[res.length - 1]
       expect(root.path).to.equal('test-folder')
@@ -103,11 +112,11 @@ module.exports = (common, options) => {
       const dir = randomName('DIR')
 
       const input = [
-        { path: `${dir}/${randomName('F0')}`, content: Buffer.from(randomName('D0')) },
-        { path: `${dir}/${randomName('F1')}`, content: Buffer.from(randomName('D1')) }
+        { path: `${dir}/${randomName('F0')}`, content: randomName('D0') },
+        { path: `${dir}/${randomName('F1')}`, content: randomName('D1') }
       ]
 
-      const res = await all(ipfs.add(input, { cidVersion: 0 }))
+      const res = await all(ipfs.addAll(input, { cidVersion: 0 }))
 
       const cidv0 = res[res.length - 1].cid
       expect(cidv0.version).to.equal(0)
@@ -126,11 +135,11 @@ module.exports = (common, options) => {
       const dir = randomName('DIR')
 
       const input = [
-        { path: `${dir}/${randomName('F0')}`, content: Buffer.from(randomName('D0')) },
-        { path: `${dir}/${randomName('F1')}`, content: Buffer.from(randomName('D1')) }
+        { path: `${dir}/${randomName('F0')}`, content: randomName('D0') },
+        { path: `${dir}/${randomName('F1')}`, content: randomName('D1') }
       ]
 
-      const res = await all(ipfs.add(input, { cidVersion: 1, rawLeaves: false }))
+      const res = await all(ipfs.addAll(input, { cidVersion: 1, rawLeaves: false }))
 
       const cidv1 = res[res.length - 1].cid
       expect(cidv1.version).to.equal(1)
@@ -157,11 +166,11 @@ module.exports = (common, options) => {
       const dir = randomName('DIR')
 
       const input = [
-        { path: `${dir}/${randomName('F0')}`, content: Buffer.from(randomName('D0')) },
-        { path: `${dir}/${randomName('F1')}`, content: Buffer.from(randomName('D1')) }
+        { path: `${dir}/${randomName('F0')}`, content: randomName('D0') },
+        { path: `${dir}/${randomName('F1')}`, content: randomName('D1') }
       ]
 
-      const res = await all(ipfs.add(input))
+      const res = await all(ipfs.addAll(input))
       const output = await all(ipfs.ls(`/ipfs/${res[res.length - 1].cid}`))
       expect(output.length).to.equal(input.length)
 
@@ -181,11 +190,11 @@ module.exports = (common, options) => {
       }
 
       const input = [
-        { path: `${dir}/${randomName('F0')}`, content: Buffer.from(randomName('D0')), mode, mtime },
-        { path: `${dir}/${randomName('F1')}`, content: Buffer.from(randomName('D1')), mode, mtime }
+        { path: `${dir}/${randomName('F0')}`, content: randomName('D0'), mode, mtime },
+        { path: `${dir}/${randomName('F1')}`, content: randomName('D1'), mode, mtime }
       ]
 
-      const res = await all(ipfs.add(input))
+      const res = await all(ipfs.addAll(input))
       const output = await all(ipfs.ls(`/ipfs/${res[res.length - 1].cid}`))
 
       expect(output).to.have.lengthOf(input.length)
@@ -193,6 +202,21 @@ module.exports = (common, options) => {
       expect(output[0].mode).to.equal(expectedMode)
       expect(output[1].mtime).to.deep.equal(expectedMtime)
       expect(output[1].mode).to.equal(expectedMode)
+    })
+
+    it('should ls files by subdir', async () => {
+      const dir = randomName('DIR')
+      const subdir = randomName('F0')
+      const subfile = randomName('F1')
+
+      const input = { path: `${dir}/${subdir}/${subfile}`, content: randomName('D1') }
+
+      const res = await ipfs.add(input)
+      const path = `${res.cid}/${subdir}`
+      const output = await all(ipfs.ls(path))
+
+      expect(output).to.have.lengthOf(1)
+      expect(output[0]).to.have.property('path', `${path}/${subfile}`)
     })
   })
 }

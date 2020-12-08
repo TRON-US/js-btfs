@@ -1,12 +1,16 @@
 /* eslint-env mocha */
 'use strict'
 
+const uint8ArrayFromString = require('uint8arrays/from-string')
 const dagPB = require('ipld-dag-pb')
 const DAGNode = dagPB.DAGNode
 const dagCBOR = require('ipld-dag-cbor')
+const importer = require('ipfs-unixfs-importer')
 const Unixfs = require('ipfs-unixfs')
 const all = require('it-all')
+const CID = require('cids')
 const { getDescribe, getIt, expect } = require('../utils/mocha')
+const testTimeout = require('../utils/test-timeout')
 
 /** @typedef { import("ipfsd-ctl/src/factory") } Factory */
 /**
@@ -31,13 +35,13 @@ module.exports = (common, options) => {
     let cidCbor
 
     before(async () => {
-      const someData = Buffer.from('some other data')
+      const someData = uint8ArrayFromString('some other data')
       pbNode = new DAGNode(someData)
       cborNode = {
         data: someData
       }
 
-      nodePb = new DAGNode(Buffer.from('I am inside a Protobuf'))
+      nodePb = new DAGNode(uint8ArrayFromString('I am inside a Protobuf'))
       cidPb = await dagPB.util.cid(nodePb.serialize())
       nodeCbor = {
         someData: 'I am inside a Cbor object',
@@ -48,6 +52,12 @@ module.exports = (common, options) => {
 
       await ipfs.dag.put(nodePb, { format: 'dag-pb', hashAlg: 'sha2-256' })
       await ipfs.dag.put(nodeCbor, { format: 'dag-cbor', hashAlg: 'sha2-256' })
+    })
+
+    it('should respect timeout option when getting a DAG node', () => {
+      return testTimeout(() => ipfs.dag.get(new CID('QmPv52ekjS75L4JmHpXVeuJ5uX2ecSfSZo88NSyxwA3rAQ'), {
+        timeout: 1
+      }))
     })
 
     it('should get a dag-pb node', async () => {
@@ -75,7 +85,9 @@ module.exports = (common, options) => {
     })
 
     it('should get a dag-pb node with path', async () => {
-      const result = await ipfs.dag.get(cidPb, '/')
+      const result = await ipfs.dag.get(cidPb, {
+        path: '/'
+      })
 
       const node = result.value
 
@@ -84,15 +96,19 @@ module.exports = (common, options) => {
     })
 
     it('should get a dag-pb node local value', async function () {
-      const result = await ipfs.dag.get(cidPb, 'Data')
-      expect(result.value).to.eql(Buffer.from('I am inside a Protobuf'))
+      const result = await ipfs.dag.get(cidPb, {
+        path: 'Data'
+      })
+      expect(result.value).to.eql(uint8ArrayFromString('I am inside a Protobuf'))
     })
 
     it.skip('should get a dag-pb node value one level deep', (done) => {})
     it.skip('should get a dag-pb node value two levels deep', (done) => {})
 
     it('should get a dag-cbor node with path', async () => {
-      const result = await ipfs.dag.get(cidCbor, '/')
+      const result = await ipfs.dag.get(cidCbor, {
+        path: '/'
+      })
 
       const node = result.value
 
@@ -101,7 +117,9 @@ module.exports = (common, options) => {
     })
 
     it('should get a dag-cbor node local value', async () => {
-      const result = await ipfs.dag.get(cidCbor, 'someData')
+      const result = await ipfs.dag.get(cidCbor, {
+        path: 'someData'
+      })
       expect(result.value).to.eql('I am inside a Cbor object')
     })
 
@@ -110,8 +128,10 @@ module.exports = (common, options) => {
     it.skip('should get dag-cbor value via dag-pb node', (done) => {})
 
     it('should get dag-pb value via dag-cbor node', async function () {
-      const result = await ipfs.dag.get(cidCbor, 'pb/Data')
-      expect(result.value).to.eql(Buffer.from('I am inside a Protobuf'))
+      const result = await ipfs.dag.get(cidCbor, {
+        path: 'pb/Data'
+      })
+      expect(result.value).to.eql(uint8ArrayFromString('I am inside a Protobuf'))
     })
 
     it('should get by CID string', async () => {
@@ -129,16 +149,24 @@ module.exports = (common, options) => {
       const cidCborStr = cidCbor.toBaseEncodedString()
 
       const result = await ipfs.dag.get(cidCborStr + '/pb/Data')
-      expect(result.value).to.eql(Buffer.from('I am inside a Protobuf'))
+      expect(result.value).to.eql(uint8ArrayFromString('I am inside a Protobuf'))
     })
 
     it('should get only a CID, due to resolving locally only', async function () {
-      const result = await ipfs.dag.get(cidCbor, 'pb/Data', { localResolve: true })
+      const result = await ipfs.dag.get(cidCbor, {
+        path: 'pb/Data',
+        localResolve: true
+      })
       expect(result.value.equals(cidPb)).to.be.true()
     })
 
+    it('should get with options and no path', async function () {
+      const result = await ipfs.dag.get(cidCbor, { localResolve: true })
+      expect(result.value).to.deep.equal(nodeCbor)
+    })
+
     it('should get a node added as CIDv0 with a CIDv1', async () => {
-      const input = Buffer.from(`TEST${Math.random()}`)
+      const input = uint8ArrayFromString(`TEST${Math.random()}`)
 
       const node = new DAGNode(input)
 
@@ -152,9 +180,12 @@ module.exports = (common, options) => {
     })
 
     it('should get a node added as CIDv1 with a CIDv0', async () => {
-      const input = Buffer.from(`TEST${Math.random()}`)
+      const input = uint8ArrayFromString(`TEST${Math.random()}`)
 
-      const res = await all(ipfs.add(input, { cidVersion: 1, rawLeaves: false }))
+      const res = await all(importer([{ content: input }], ipfs.block, {
+        cidVersion: 1,
+        rawLeaves: false
+      }))
 
       const cidv1 = res[0].cid
       expect(cidv1.version).to.equal(1)
@@ -175,7 +206,9 @@ module.exports = (common, options) => {
       cid = cid.toBaseEncodedString('base32')
       expect(cid).to.equal('bafyreic6f672hnponukaacmk2mmt7vs324zkagvu4hcww6yba6kby25zce')
 
-      const result = await ipfs.dag.get(cid, 'foo')
+      const result = await ipfs.dag.get(cid, {
+        path: 'foo'
+      })
       expect(result.value).to.equal('dag-cbor-bar')
     })
 
@@ -189,12 +222,14 @@ module.exports = (common, options) => {
 
       const cid2 = await ipfs.dag.put(cbor2, { format: 'dag-cbor', hashAlg: 'sha2-256' })
 
-      const result = await ipfs.dag.get(cid2, 'other/foo')
+      const result = await ipfs.dag.get(cid2, {
+        path: 'other/foo'
+      })
       expect(result.value).to.equal('dag-cbor-bar')
     })
 
     it('should be able to get a DAG node with format raw', async () => {
-      const buf = Buffer.from([0, 1, 2, 3])
+      const buf = Uint8Array.from([0, 1, 2, 3])
 
       const cid = await ipfs.dag.put(buf, {
         format: 'raw',
@@ -203,6 +238,16 @@ module.exports = (common, options) => {
 
       const result = await ipfs.dag.get(cid)
       expect(result.value).to.deep.equal(buf)
+    })
+
+    it('should throw error for invalid string CID input', () => {
+      return expect(ipfs.dag.get('INVALID CID'))
+        .to.eventually.be.rejected()
+    })
+
+    it('should throw error for invalid buffer CID input', () => {
+      return expect(ipfs.dag.get(uint8ArrayFromString('INVALID CID')))
+        .to.eventually.be.rejected()
     })
   })
 }

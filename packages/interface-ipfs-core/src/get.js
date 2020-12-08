@@ -1,11 +1,17 @@
 /* eslint-env mocha */
 'use strict'
 
+const uint8ArrayFromString = require('uint8arrays/from-string')
+const uint8ArrayToString = require('uint8arrays/to-string')
+const uint8ArrayConcat = require('uint8arrays/concat')
 const { fixtures } = require('./utils')
 const CID = require('cids')
 const all = require('it-all')
-const concat = require('it-concat')
+const drain = require('it-drain')
+const last = require('it-last')
 const { getDescribe, getIt, expect } = require('./utils/mocha')
+const testTimeout = require('./utils/test-timeout')
+const importer = require('ipfs-unixfs-importer')
 
 /** @typedef { import("ipfsd-ctl/src/factory") } Factory */
 /**
@@ -17,38 +23,44 @@ module.exports = (common, options) => {
   const it = getIt(options)
 
   describe('.get', function () {
-    this.timeout(40 * 1000)
+    this.timeout(120 * 1000)
 
     let ipfs
 
     before(async () => {
       ipfs = (await common.spawn()).api
-      await all(ipfs.add(fixtures.smallFile.data))
-      await all(ipfs.add(fixtures.bigFile.data))
+      await drain(importer([{ content: fixtures.smallFile.data }], ipfs.block))
+      await drain(importer([{ content: fixtures.bigFile.data }], ipfs.block))
     })
 
     after(() => common.clean())
+
+    it('should respect timeout option when getting files', () => {
+      return testTimeout(() => drain(ipfs.get(new CID('QmPDqvcuA4AkhBLBuh2y49yhUB98rCnxPxa3eVNC1kAbS1'), {
+        timeout: 1
+      })))
+    })
 
     it('should get with a base58 encoded multihash', async () => {
       const files = await all(ipfs.get(fixtures.smallFile.cid))
       expect(files).to.be.length(1)
       expect(files[0].path).to.eql(fixtures.smallFile.cid)
-      expect((await concat(files[0].content)).toString()).to.contain('Plz add me!')
+      expect(uint8ArrayToString(uint8ArrayConcat(await all(files[0].content)))).to.contain('Plz add me!')
     })
 
-    it('should get with a Buffer multihash', async () => {
+    it('should get with a Uint8Array multihash', async () => {
       const cidBuf = new CID(fixtures.smallFile.cid).multihash
 
       const files = await all(ipfs.get(cidBuf))
       expect(files).to.be.length(1)
       expect(files[0].path).to.eql(fixtures.smallFile.cid)
-      expect((await concat(files[0].content)).toString()).to.contain('Plz add me!')
+      expect(uint8ArrayToString(uint8ArrayConcat(await all(files[0].content)))).to.contain('Plz add me!')
     })
 
     it('should get a file added as CIDv0 with a CIDv1', async () => {
-      const input = Buffer.from(`TEST${Math.random()}`)
+      const input = uint8ArrayFromString(`TEST${Math.random()}`)
 
-      const res = await all(ipfs.add(input, { cidVersion: 0 }))
+      const res = await all(importer([{ content: input }], ipfs.block))
 
       const cidv0 = res[0].cid
       expect(cidv0.version).to.equal(0)
@@ -56,13 +68,13 @@ module.exports = (common, options) => {
       const cidv1 = cidv0.toV1()
 
       const output = await all(ipfs.get(cidv1))
-      expect((await concat(output[0].content)).slice()).to.eql(input)
+      expect(uint8ArrayConcat(await all(output[0].content))).to.eql(input)
     })
 
     it('should get a file added as CIDv1 with a CIDv0', async () => {
-      const input = Buffer.from(`TEST${Math.random()}`)
+      const input = uint8ArrayFromString(`TEST${Math.random()}`)
 
-      const res = await all(ipfs.add(input, { cidVersion: 1, rawLeaves: false }))
+      const res = await all(importer([{ content: input }], ipfs.block, { cidVersion: 1, rawLeaves: false }))
 
       const cidv1 = res[0].cid
       expect(cidv1.version).to.equal(1)
@@ -70,13 +82,13 @@ module.exports = (common, options) => {
       const cidv0 = cidv1.toV0()
 
       const output = await all(ipfs.get(cidv0))
-      expect((await concat(output[0].content)).slice()).to.eql(input)
+      expect(uint8ArrayConcat(await all(output[0].content))).to.eql(input)
     })
 
     it('should get a BIG file', async () => {
       for await (const file of ipfs.get(fixtures.bigFile.cid)) {
         expect(file.path).to.equal(fixtures.bigFile.cid)
-        const content = await concat(file.content)
+        const content = uint8ArrayConcat(await all(file.content))
         expect(content.length).to.eql(fixtures.bigFile.data.length)
         expect(content.slice()).to.eql(fixtures.bigFile.data)
       }
@@ -101,7 +113,7 @@ module.exports = (common, options) => {
         emptyDir('files/empty')
       ]
 
-      const res = await all(ipfs.add(dirs))
+      const res = await all(importer(dirs, ipfs.block))
       const root = res[res.length - 1]
 
       expect(root.path).to.equal('test-folder')
@@ -109,7 +121,7 @@ module.exports = (common, options) => {
 
       let files = await all((async function * () {
         for await (let { path, content } of ipfs.get(fixtures.directory.cid)) {
-          content = content ? (await concat(content)).toString() : null
+          content = content ? uint8ArrayToString(uint8ArrayConcat(await all(content))) : null
           yield { path, content }
         }
       })())
@@ -152,36 +164,18 @@ module.exports = (common, options) => {
         content: fixtures.smallFile.data
       }
 
-      for await (const fileAdded of ipfs.add(file)) {
-        if (fileAdded.path === 'a') {
-          const files = await all(ipfs.get(`/ipfs/${fileAdded.cid.toString()}/testfile.txt`))
-          expect(files).to.be.length(1)
-          expect((await concat(files[0].content)).toString()).to.contain('Plz add me!')
-        }
-      }
-    })
+      const fileAdded = await last(importer([file], ipfs.block))
+      expect(fileAdded).to.have.property('path', 'a')
 
-    it('should get with ipfs path, as array and nested value', async () => {
-      const file = {
-        path: 'a/testfile.txt',
-        content: fixtures.smallFile.data
-      }
-
-      const filesAdded = await all(ipfs.add([file]))
-
-      filesAdded.forEach(async (file) => {
-        if (file.path === 'a') {
-          const files = await all(ipfs.get(`/ipfs/${file.cid}/testfile.txt`))
-          expect(files).to.be.length(1)
-          expect((await concat(files[0].content)).toString()).to.contain('Plz add me!')
-        }
-      })
+      const files = await all(ipfs.get(`/ipfs/${fileAdded.cid}/testfile.txt`))
+      expect(files).to.be.length(1)
+      expect(uint8ArrayToString(uint8ArrayConcat(await all(files[0].content)))).to.contain('Plz add me!')
     })
 
     it('should error on invalid key', async () => {
       const invalidCid = 'somethingNotMultihash'
 
-      const err = await expect(all(ipfs.get(invalidCid))).to.be.rejected()
+      const err = await expect(all(ipfs.get(invalidCid))).to.eventually.be.rejected()
 
       switch (err.toString()) {
         case 'Error: invalid ipfs ref path':

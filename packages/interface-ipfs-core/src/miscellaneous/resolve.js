@@ -1,13 +1,15 @@
 /* eslint-env mocha */
 'use strict'
 
+const uint8ArrayFromString = require('uint8arrays/from-string')
 const isIpfs = require('is-ipfs')
 const loadFixture = require('aegir/fixtures')
-const hat = require('hat')
+const { nanoid } = require('nanoid')
 const multibase = require('multibase')
 const { getDescribe, getIt, expect } = require('../utils/mocha')
 const all = require('it-all')
 const { isWebWorker } = require('ipfs-utils/src/env')
+const testTimeout = require('../utils/test-timeout')
 
 /** @typedef { import("ipfsd-ctl/src/factory") } Factory */
 /**
@@ -28,16 +30,22 @@ module.exports = (common, options) => {
 
     after(() => common.clean())
 
+    it('should respect timeout option when resoving an ipfs path', () => {
+      return testTimeout(() => ipfs.resolve('/ipfs/Qmd7qZS4T7xXtsNFdRoK1trfMs5zU94EpokQ9WFtxdPxsZ/herp/derp', {
+        timeout: 1
+      }))
+    })
+
     it('should resolve an IPFS hash', async () => {
       const content = loadFixture('test/fixtures/testfile.txt', 'interface-ipfs-core')
 
-      const [{ cid }] = await all(ipfs.add(content))
+      const { cid } = await ipfs.add(content)
       const path = await ipfs.resolve(`/ipfs/${cid}`)
       expect(path).to.equal(`/ipfs/${cid}`)
     })
 
     it('should resolve an IPFS hash and return a base64url encoded CID in path', async () => {
-      const [{ cid }] = await all(ipfs.add(Buffer.from('base64url encoded')))
+      const { cid } = await ipfs.add(uint8ArrayFromString('base64url encoded'))
       const path = await ipfs.resolve(`/ipfs/${cid}`, { cidBase: 'base64url' })
       const [,, cidStr] = path.split('/')
 
@@ -48,14 +56,14 @@ module.exports = (common, options) => {
     it('should resolve an IPFS path link', async () => {
       const path = 'path/to/testfile.txt'
       const content = loadFixture('test/fixtures/testfile.txt', 'interface-ipfs-core')
-      const [{ cid: fileCid }, , , { cid: rootCid }] = await all(ipfs.add([{ path, content }], { wrapWithDirectory: true }))
+      const [{ cid: fileCid }, , , { cid: rootCid }] = await all(ipfs.addAll([{ path, content }], { wrapWithDirectory: true }))
       const resolve = await ipfs.resolve(`/ipfs/${rootCid}/${path}`)
 
       expect(resolve).to.equal(`/ipfs/${fileCid}`)
     })
 
     it('should resolve up to the last node', async () => {
-      const content = { path: { to: { file: hat() } } }
+      const content = { path: { to: { file: nanoid() } } }
       const options = { format: 'dag-cbor', hashAlg: 'sha2-256' }
       const cid = await ipfs.dag.put(content, options)
       const path = `/ipfs/${cid}/path/to/file`
@@ -66,7 +74,7 @@ module.exports = (common, options) => {
 
     it('should resolve up to the last node across multiple nodes', async () => {
       const options = { format: 'dag-cbor', hashAlg: 'sha2-256' }
-      const childCid = await ipfs.dag.put({ node: { with: { file: hat() } } }, options)
+      const childCid = await ipfs.dag.put({ node: { with: { file: nanoid() } } }, options)
       const parentCid = await ipfs.dag.put({ path: { to: childCid } }, options)
       const resolved = await ipfs.resolve(`/ipfs/${parentCid}/path/to/node/with/file`)
 
@@ -86,7 +94,7 @@ module.exports = (common, options) => {
       // webworkers are not dialable because webrtc is not available
       const node = (await common.spawn({ type: isWebWorker ? 'go' : undefined })).api
       await ipfs.swarm.connect(node.peerId.addresses[0])
-      const [{ path }] = await all(ipfs.add(Buffer.from('should resolve a record recursive === true')))
+      const { path } = await ipfs.add(uint8ArrayFromString('should resolve a record recursive === true'))
       const { id: keyId } = await ipfs.key.gen('key-name', { type: 'rsa', size: 2048 })
 
       await ipfs.name.publish(path, { allowOffline: true })

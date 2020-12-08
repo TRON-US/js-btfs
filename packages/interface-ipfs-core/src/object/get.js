@@ -3,12 +3,14 @@
 
 const dagPB = require('ipld-dag-pb')
 const DAGNode = dagPB.DAGNode
-const hat = require('hat')
+const { nanoid } = require('nanoid')
 const { getDescribe, getIt, expect } = require('../utils/mocha')
 const UnixFs = require('ipfs-unixfs')
-const crypto = require('crypto')
+const randomBytes = require('iso-random-stream/src/random')
 const { asDAGLink } = require('./utils')
-const all = require('it-all')
+const testTimeout = require('../utils/test-timeout')
+const CID = require('cids')
+const uint8ArrayFromString = require('uint8arrays/from-string')
 
 /** @typedef { import("ipfsd-ctl/src/factory") } Factory */
 /**
@@ -30,9 +32,15 @@ module.exports = (common, options) => {
 
     after(() => common.clean())
 
+    it('should respect timeout option when getting an object', () => {
+      return testTimeout(() => ipfs.object.get(new CID('Qmd7qZS4T7xXtsNFdRoK1trfMs5zU94EpokQ9WFtxdPxsZ'), {
+        timeout: 1
+      }))
+    })
+
     it('should get object by multihash', async () => {
       const obj = {
-        Data: Buffer.from(hat()),
+        Data: uint8ArrayFromString(nanoid()),
         Links: []
       }
 
@@ -41,9 +49,9 @@ module.exports = (common, options) => {
       let node2 = await ipfs.object.get(node1Cid)
 
       // because js-ipfs-api can't infer if the
-      // returned Data is Buffer or String
+      // returned Data is Uint8Array or String
       if (typeof node2.Data === 'string') {
-        node2 = new DAGNode(Buffer.from(node2.Data), node2.Links, node2.size)
+        node2 = new DAGNode(uint8ArrayFromString(node2.Data), node2.Links, node2.size)
       }
 
       expect(node1.Data).to.eql(node2.Data)
@@ -52,7 +60,7 @@ module.exports = (common, options) => {
 
     it('should get object by multihash string', async () => {
       const obj = {
-        Data: Buffer.from(hat()),
+        Data: uint8ArrayFromString(nanoid()),
         Links: []
       }
 
@@ -61,9 +69,9 @@ module.exports = (common, options) => {
       let node2 = await ipfs.object.get(node1Cid.toBaseEncodedString())
 
       // because js-ipfs-api can't infer if the
-      // returned Data is Buffer or String
+      // returned Data is Uint8Array or String
       if (typeof node2.Data === 'string') {
-        node2 = new DAGNode(Buffer.from(node2.Data), node2.Links, node2.size)
+        node2 = new DAGNode(uint8ArrayFromString(node2.Data), node2.Links, node2.size)
       }
 
       expect(node1.Data).to.deep.equal(node2.Data)
@@ -71,8 +79,8 @@ module.exports = (common, options) => {
     })
 
     it('should get object with links by multihash string', async () => {
-      const node1a = new DAGNode(Buffer.from('Some data 1'))
-      const node2 = new DAGNode(Buffer.from('Some data 2'))
+      const node1a = new DAGNode(uint8ArrayFromString('Some data 1'))
+      const node2 = new DAGNode(uint8ArrayFromString('Some data 2'))
 
       const link = await asDAGLink(node2, 'some-link')
       const node1b = new DAGNode(node1a.Data, node1a.Links.concat(link))
@@ -81,9 +89,9 @@ module.exports = (common, options) => {
       let node1c = await ipfs.object.get(node1bCid)
 
       // because js-ipfs-api can't infer if the
-      // returned Data is Buffer or String
+      // returned Data is Uint8Array or String
       if (typeof node1c.Data === 'string') {
-        node1c = new DAGNode(Buffer.from(node1c.Data), node1c.Links, node1c.size)
+        node1c = new DAGNode(uint8ArrayFromString(node1c.Data), node1c.Links, node1c.size)
       }
 
       expect(node1a.Data).to.eql(node1c.Data)
@@ -91,7 +99,7 @@ module.exports = (common, options) => {
 
     it('should get object by base58 encoded multihash', async () => {
       const obj = {
-        Data: Buffer.from(hat()),
+        Data: uint8ArrayFromString(nanoid()),
         Links: []
       }
 
@@ -100,9 +108,9 @@ module.exports = (common, options) => {
       let node1b = await ipfs.object.get(node1aCid, { enc: 'base58' })
 
       // because js-ipfs-api can't infer if the
-      // returned Data is Buffer or String
+      // returned Data is Uint8Array or String
       if (typeof node1b.Data === 'string') {
-        node1b = new DAGNode(Buffer.from(node1b.Data), node1b.Links, node1b.size)
+        node1b = new DAGNode(uint8ArrayFromString(node1b.Data), node1b.Links, node1b.size)
       }
 
       expect(node1a.Data).to.eql(node1b.Data)
@@ -111,7 +119,7 @@ module.exports = (common, options) => {
 
     it('should get object by base58 encoded multihash string', async () => {
       const obj = {
-        Data: Buffer.from(hat()),
+        Data: uint8ArrayFromString(nanoid()),
         Links: []
       }
 
@@ -120,9 +128,9 @@ module.exports = (common, options) => {
       let node1b = await ipfs.object.get(node1aCid.toBaseEncodedString(), { enc: 'base58' })
 
       // because js-ipfs-api can't infer if the
-      // returned Data is Buffer or String
+      // returned Data is Uint8Array or String
       if (typeof node1b.Data === 'string') {
-        node1b = new DAGNode(Buffer.from(node1b.Data), node1b.Links, node1b.size)
+        node1b = new DAGNode(uint8ArrayFromString(node1b.Data), node1b.Links, node1b.size)
       }
 
       expect(node1a.Data).to.eql(node1b.Data)
@@ -131,14 +139,14 @@ module.exports = (common, options) => {
 
     it('should supply unaltered data', async () => {
       // has to be big enough to span several DAGNodes
-      const data = crypto.randomBytes(1024 * 3000)
+      const data = randomBytes(1024 * 3000)
 
-      const result = await all(ipfs.add({
+      const result = await ipfs.add({
         path: '',
         content: data
-      }))
+      })
 
-      const node = await ipfs.object.get(result[0].cid)
+      const node = await ipfs.object.get(result.cid)
       const meta = UnixFs.unmarshal(node.Data)
 
       expect(meta.fileSize()).to.equal(data.length)

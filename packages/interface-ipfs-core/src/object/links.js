@@ -1,12 +1,14 @@
 /* eslint-env mocha */
 'use strict'
 
+const uint8ArrayFromString = require('uint8arrays/from-string')
 const dagPB = require('ipld-dag-pb')
 const DAGNode = dagPB.DAGNode
-const hat = require('hat')
+const { nanoid } = require('nanoid')
 const { getDescribe, getIt, expect } = require('../utils/mocha')
 const { asDAGLink } = require('./utils')
-const all = require('it-all')
+const testTimeout = require('../utils/test-timeout')
+const CID = require('cids')
 
 /** @typedef { import("ipfsd-ctl/src/factory") } Factory */
 /**
@@ -28,9 +30,15 @@ module.exports = (common, options) => {
 
     after(() => common.clean())
 
+    it('should respect timeout option when getting the links from an object', () => {
+      return testTimeout(() => ipfs.object.links(new CID('Qmd7qZS4T7xXtsNFdRoK1trfMs5zU94EpokQ9WFtxdPxsZ'), {
+        timeout: 1
+      }))
+    })
+
     it('should get empty links by multihash', async () => {
       const testObj = {
-        Data: Buffer.from(hat()),
+        Data: uint8ArrayFromString(nanoid()),
         Links: []
       }
 
@@ -42,8 +50,8 @@ module.exports = (common, options) => {
     })
 
     it('should get links by multihash', async () => {
-      const node1a = new DAGNode(Buffer.from('Some data 1'))
-      const node2 = new DAGNode(Buffer.from('Some data 2'))
+      const node1a = new DAGNode(uint8ArrayFromString('Some data 1'))
+      const node2 = new DAGNode(uint8ArrayFromString('Some data 2'))
 
       const link = await asDAGLink(node2, 'some-link')
 
@@ -51,29 +59,27 @@ module.exports = (common, options) => {
       const node1bCid = await ipfs.object.put(node1b)
 
       const links = await ipfs.object.links(node1bCid)
-      expect(node1b.Links[0]).to.eql({
-        Hash: links[0].Hash,
-        Tsize: links[0].Tsize,
-        Name: links[0].Name
-      })
+
+      expect(links).to.have.lengthOf(1)
+      expect(node1b.Links).to.deep.equal(links)
     })
 
     it('should get links by base58 encoded multihash', async () => {
       const testObj = {
-        Data: Buffer.from(hat()),
+        Data: uint8ArrayFromString(nanoid()),
         Links: []
       }
 
       const cid = await ipfs.object.put(testObj)
       const node = await ipfs.object.get(cid)
 
-      const links = await ipfs.object.links(cid.buffer, { enc: 'base58' })
+      const links = await ipfs.object.links(cid.bytes, { enc: 'base58' })
       expect(node.Links).to.deep.equal(links)
     })
 
     it('should get links by base58 encoded multihash string', async () => {
       const testObj = {
-        Data: Buffer.from(hat()),
+        Data: uint8ArrayFromString(nanoid()),
         Links: []
       }
 
@@ -87,11 +93,11 @@ module.exports = (common, options) => {
     it('should get links from CBOR object', async () => {
       const hashes = []
 
-      const res1 = await all(ipfs.add(Buffer.from('test data')))
-      hashes.push(res1[0].cid)
+      const res1 = await ipfs.add(uint8ArrayFromString('test data'))
+      hashes.push(res1.cid)
 
-      const res2 = await all(ipfs.add(Buffer.from('more test data')))
-      hashes.push(res2[0].cid)
+      const res2 = await ipfs.add(uint8ArrayFromString('more test data'))
+      hashes.push(res2.cid)
 
       const obj = {
         some: 'data',

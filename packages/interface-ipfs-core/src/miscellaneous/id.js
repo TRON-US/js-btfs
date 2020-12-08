@@ -4,6 +4,8 @@
 const { getDescribe, getIt, expect } = require('../utils/mocha')
 const Multiaddr = require('multiaddr')
 const CID = require('cids')
+const testTimeout = require('../utils/test-timeout')
+const { isWebWorker } = require('ipfs-utils/src/env')
 
 /** @typedef { import("ipfsd-ctl/src/factory") } Factory */
 /**
@@ -24,14 +26,52 @@ module.exports = (common, options) => {
 
     after(() => common.clean())
 
+    it('should respect timeout option when getting the node id', () => {
+      return testTimeout(() => ipfs.id({
+        timeout: 1
+      }))
+    })
+
     it('should get the node ID', async () => {
       const res = await ipfs.id()
       expect(res).to.have.a.property('id').that.is.a('string')
       expect(CID.isCID(new CID(res.id))).to.equal(true)
       expect(res).to.have.a.property('publicKey')
-      expect(res).to.have.a.property('addresses').that.is.an('array').and.all.satisfy(ma => Multiaddr.isMultiaddr(ma))
       expect(res).to.have.a.property('agentVersion').that.is.a('string')
       expect(res).to.have.a.property('protocolVersion').that.is.a('string')
+      expect(res).to.have.a.property('addresses').that.is.an('array')
+
+      for (const ma of res.addresses) {
+        expect(Multiaddr.isMultiaddr(ma)).to.be.true()
+      }
+    })
+
+    it('should have protocols property', async () => {
+      const res = await ipfs.id()
+
+      expect(res).to.have.a.property('protocols').that.is.an('array')
+
+      expect(res.protocols).to.have.members([
+        '/floodsub/1.0.0',
+        '/ipfs/bitswap/1.0.0',
+        '/ipfs/bitswap/1.1.0',
+        '/ipfs/bitswap/1.2.0',
+        '/ipfs/id/1.0.0',
+        '/ipfs/id/push/1.0.0',
+        '/ipfs/ping/1.0.0',
+        '/libp2p/circuit/relay/0.1.0',
+        '/meshsub/1.0.0',
+        '/meshsub/1.1.0'
+      ])
+    })
+
+    it('should return swarm ports opened after startup', async function () {
+      if (isWebWorker) {
+        // TODO: webworkers are not currently dialable
+        return this.skip()
+      }
+
+      await expect(ipfs.id()).to.eventually.have.property('addresses').that.is.not.empty()
     })
   })
 }

@@ -1,21 +1,29 @@
 'use strict'
 
-const Block = require('ipfs-block')
+const Block = require('ipld-block')
 const CID = require('cids')
-const { Buffer } = require('buffer')
 const configure = require('../lib/configure')
+const toUrlSearchParams = require('../lib/to-url-search-params')
 
 module.exports = configure(api => {
-  return async (cid, options = {}) => {
+  /**
+   * @type {import('..').Implements<typeof import('ipfs-core/src/components/block/get')>}
+   */
+  async function get (cid, options = {}) {
+    // @ts-ignore - CID|string seems to confuse typedef
     cid = new CID(cid)
-    options.arg = cid.toString()
 
-    const rsp = await api.post('block/get', {
+    const res = await api.post('block/get', {
       timeout: options.timeout,
       signal: options.signal,
-      searchParams: options
+      searchParams: toUrlSearchParams({
+        arg: cid.toString(),
+        ...options
+      }),
+      headers: options.headers
     })
 
-    return new Block(Buffer.from(await rsp.arrayBuffer()), cid)
+    return new Block(new Uint8Array(await res.arrayBuffer()), cid)
   }
+  return get
 })

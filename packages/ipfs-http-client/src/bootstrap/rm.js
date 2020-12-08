@@ -1,23 +1,28 @@
 'use strict'
 
-const Multiaddr = require('multiaddr')
 const configure = require('../lib/configure')
+const toUrlSearchParams = require('../lib/to-url-search-params')
+const Multiaddr = require('multiaddr')
 
 module.exports = configure(api => {
-  return async (addr, options = {}) => {
-    if (addr && typeof addr === 'object' && !Multiaddr.isMultiaddr(addr)) {
-      options = addr
-      addr = null
-    }
-
-    options.arg = addr
-
+  /**
+   * @type {import('..').Implements<typeof import('ipfs-core/src/components/bootstrap/rm')>}
+   */
+  async function rm (addr, options = {}) {
     const res = await api.post('bootstrap/rm', {
       timeout: options.timeout,
       signal: options.signal,
-      searchParams: options
+      searchParams: toUrlSearchParams({
+        arg: addr,
+        ...options
+      }),
+      headers: options.headers
     })
 
-    return res.json()
+    const { Peers } = await res.json()
+
+    return { Peers: Peers.map(ma => new Multiaddr(ma)) }
   }
+
+  return rm
 })

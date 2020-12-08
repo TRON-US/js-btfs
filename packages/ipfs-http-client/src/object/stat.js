@@ -1,28 +1,21 @@
 'use strict'
 
-const { Buffer } = require('buffer')
 const CID = require('cids')
 const configure = require('../lib/configure')
+const toUrlSearchParams = require('../lib/to-url-search-params')
 
 module.exports = configure(api => {
   return async (cid, options = {}) => {
-    const searchParams = new URLSearchParams(options)
-    searchParams.set('arg', `${Buffer.isBuffer(cid) ? new CID(cid) : cid}`)
+    const res = await api.post('object/stat', {
+      timeout: options.timeout,
+      signal: options.signal,
+      searchParams: toUrlSearchParams({
+        arg: `${cid instanceof Uint8Array ? new CID(cid) : cid}`,
+        ...options
+      }),
+      headers: options.headers
+    })
 
-    let res
-    try {
-      res = await (await api.post('object/stat', {
-        timeout: options.timeout,
-        signal: options.signal,
-        searchParams
-      })).json()
-    } catch (err) {
-      if (err.name === 'TimeoutError') {
-        err.message = `failed to get block for ${Buffer.isBuffer(cid) ? new CID(cid) : cid}: context deadline exceeded`
-      }
-      throw err
-    }
-
-    return res
+    return res.json()
   }
 })

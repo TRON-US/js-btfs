@@ -1,9 +1,11 @@
 /* eslint-env mocha */
 'use strict'
 
-const multihash = require('multihashes')
+const uint8ArrayFromString = require('uint8arrays/from-string')
+const multihash = require('multihashing-async').multihash
 const CID = require('cids')
 const { getDescribe, getIt, expect } = require('../utils/mocha')
+const testTimeout = require('../utils/test-timeout')
 
 /** @typedef { import("ipfsd-ctl/src/factory") } Factory */
 /**
@@ -15,7 +17,7 @@ module.exports = (common, options) => {
   const it = getIt(options)
 
   describe('.block.get', () => {
-    const data = Buffer.from('blorb')
+    const data = uint8ArrayFromString('blorb')
     let ipfs, hash
 
     before(async () => {
@@ -26,23 +28,29 @@ module.exports = (common, options) => {
 
     after(() => common.clean())
 
+    it('should respect timeout option when getting a block', () => {
+      return testTimeout(() => ipfs.block.get(new CID('QmPv52ekjS75L4JmHpXVeuJ5uX2ecSfSZo88NSyxwA3rA3'), {
+        timeout: 1
+      }))
+    })
+
     it('should get by CID object', async () => {
       const cid = new CID(hash)
       const block = await ipfs.block.get(cid)
 
-      expect(block.data).to.eql(Buffer.from('blorb'))
+      expect(block.data).to.eql(uint8ArrayFromString('blorb'))
       expect(block.cid.multihash).to.eql(cid.multihash)
     })
 
     it('should get by CID in string', async () => {
       const block = await ipfs.block.get(multihash.toB58String(hash))
 
-      expect(block.data).to.eql(Buffer.from('blorb'))
+      expect(block.data).to.eql(uint8ArrayFromString('blorb'))
       expect(block.cid.multihash).to.eql(hash)
     })
 
     it('should get an empty block', async () => {
-      const res = await ipfs.block.put(Buffer.alloc(0), {
+      const res = await ipfs.block.put(new Uint8Array(0), {
         format: 'dag-pb',
         mhtype: 'sha2-256',
         version: 0
@@ -50,11 +58,11 @@ module.exports = (common, options) => {
 
       const block = await ipfs.block.get(res.cid)
 
-      expect(block.data).to.eql(Buffer.alloc(0))
+      expect(block.data).to.eql(new Uint8Array(0))
     })
 
     it('should get a block added as CIDv0 with a CIDv1', async () => {
-      const input = Buffer.from(`TEST${Math.random()}`)
+      const input = uint8ArrayFromString(`TEST${Math.random()}`)
 
       const res = await ipfs.block.put(input, { version: 0 })
 
@@ -68,7 +76,7 @@ module.exports = (common, options) => {
     })
 
     it('should get a block added as CIDv1 with a CIDv0', async () => {
-      const input = Buffer.from(`TEST${Math.random()}`)
+      const input = uint8ArrayFromString(`TEST${Math.random()}`)
 
       const res = await ipfs.block.put(input, { version: 1 })
 
@@ -82,10 +90,10 @@ module.exports = (common, options) => {
     })
 
     it('should return an error for an invalid CID', () => {
-      return expect(ipfs.block.get('invalid')).to.eventually.be.rejected
+      return expect(ipfs.block.get('Non-base58 character')).to.eventually.be.rejected
         .and.be.an.instanceOf(Error)
         .and.have.property('message')
-        .that.include('Non-base58 character')
+        .that.includes('Non-base58 character')
     })
   })
 }

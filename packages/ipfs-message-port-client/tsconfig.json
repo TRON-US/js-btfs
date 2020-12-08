@@ -1,0 +1,24 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "outDir": "dist"
+  },
+  "include": [
+    "src",
+    "package.json"
+  ],
+  "references": [
+    {
+      "path": "../ipfs-message-port-protocol"
+    },
+    {
+      "path": "../ipfs-message-port-server"
+    },
+    {
+      "path": "../ipfs-core"
+    },
+    {
+      "path": "../ipfs-core-utils"
+    }
+  ]
+}

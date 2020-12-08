@@ -1,10 +1,13 @@
 /* eslint-env mocha */
 'use strict'
 
+const uint8ArrayFromString = require('uint8arrays/from-string')
 const dagPB = require('ipld-dag-pb')
 const DAGNode = dagPB.DAGNode
 const { getDescribe, getIt, expect } = require('../../utils/mocha')
 const { asDAGLink } = require('../utils')
+const CID = require('cids')
+const testTimeout = require('../../utils/test-timeout')
 
 /** @typedef { import("ipfsd-ctl/src/factory") } Factory */
 /**
@@ -26,13 +29,19 @@ module.exports = (common, options) => {
 
     after(() => common.clean())
 
+    it('should respect timeout option when adding a link to an object', () => {
+      return testTimeout(() => ipfs.object.patch.addLink(new CID('Qmd7qZS4T7xXtsNFdRoK1trfMs5zU94EpokQ9WFtxdPxsZ'), { name: '', size: 37, cid: new CID('Qmd7qZS4T7xXtsNFdRoK1trfMs5zU94EpokQ9WFtxdPxaZ') }, {
+        timeout: 1
+      }))
+    })
+
     it('should add a link to an existing node', async () => {
       const obj = {
-        Data: Buffer.from('patch test object'),
+        Data: uint8ArrayFromString('patch test object'),
         Links: []
       }
       // link to add
-      const node2 = new DAGNode(Buffer.from('some other node'))
+      const node2 = new DAGNode(uint8ArrayFromString('some other node'))
       // note: we need to put the linked obj, otherwise IPFS won't
       // timeout. Reason: it needs the node to get its size
       await ipfs.object.put(node2)
@@ -52,7 +61,7 @@ module.exports = (common, options) => {
 
       /* TODO: revisit this assertions.
       // note: make sure we can link js plain objects
-      const content = Buffer.from(JSON.stringify({
+      const content = uint8ArrayFromString(JSON.stringify({
         title: 'serialized object'
       }, null, 0))
       const result = await ipfs.add(content)

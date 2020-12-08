@@ -1,12 +1,14 @@
 /* eslint-env mocha */
 'use strict'
 
+const uint8ArrayFromString = require('uint8arrays/from-string')
 const dagPB = require('ipld-dag-pb')
 const DAGNode = dagPB.DAGNode
 const dagCBOR = require('ipld-dag-cbor')
 const CID = require('cids')
-const multihash = require('multihashes')
+const multihash = require('multihashing-async').multihash
 const { getDescribe, getIt, expect } = require('../utils/mocha')
+const testTimeout = require('../utils/test-timeout')
 
 /** @typedef { import("ipfsd-ctl/src/factory") } Factory */
 /**
@@ -28,7 +30,7 @@ module.exports = (common, options) => {
     let cborNode
 
     before((done) => {
-      const someData = Buffer.from('some data')
+      const someData = uint8ArrayFromString('some data')
 
       try {
         pbNode = new DAGNode(someData)
@@ -41,6 +43,14 @@ module.exports = (common, options) => {
       }
 
       done()
+    })
+
+    it('should respect timeout option when putting a DAG node', () => {
+      return testTimeout(() => ipfs.dag.put(pbNode, {
+        format: 'dag-pb',
+        hashAlg: 'sha2-256',
+        timeout: 1
+      }))
     })
 
     it('should put dag-pb with default hash func (sha2-256)', () => {
@@ -80,7 +90,7 @@ module.exports = (common, options) => {
       expect(CID.isCID(cid)).to.equal(true)
 
       const _cid = await dagCBOR.util.cid(dagCBOR.util.serialize(cborNode))
-      expect(cid.buffer).to.eql(_cid.buffer)
+      expect(cid.bytes).to.eql(_cid.bytes)
     })
 
     it('should not fail when calling put without options', () => {

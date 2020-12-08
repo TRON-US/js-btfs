@@ -2,32 +2,20 @@
 
 const { createServer } = require('ipfsd-ctl')
 const MockPreloadNode = require('./test/utils/mock-preload-node')
-const EchoServer = require('interface-ipfs-core/src/utils/echo-http-server')
+const EchoServer = require('aegir/utils/echo-server')
 const webRTCStarSigServer = require('libp2p-webrtc-star/src/sig-server')
 const path = require('path')
-const webpack = require('webpack')
 
 let preloadNode
-let echoServer
+let echoServer = new EchoServer()
 
-// the second signalling server is needed for the inferface test 'should list peers only once even if they have multiple addresses'
+// the second signalling server is needed for the interface test 'should list peers only once even if they have multiple addresses'
 let sigServerA
 let sigServerB
 let ipfsdServer
 
 module.exports = {
-  bundlesize: { maxSize: '652kB' },
-  webpack: {
-    resolve: {
-      mainFields: ['browser', 'main'],
-      aliasFields: ['browser', 'browser-all-ipld-formats'],
-    },
-    ...(process.env.NODE_ENV === 'test' ? {
-      plugins: [
-        new webpack.EnvironmentPlugin(['DEBUG', 'ECHO_SERVER_PORT'])
-      ]
-    } : {})
-  },
+  bundlesize: { maxSize: '530kB' },
   karma: {
     files: [{
       pattern: 'node_modules/interface-ipfs-core/test/fixtures/**/*',
@@ -35,16 +23,29 @@ module.exports = {
       served: true,
       included: false
     }],
-    browserNoActivityTimeout: 100 * 1000,
+    browserNoActivityTimeout: 600 * 1000
+  },
+  webpack: {
+    node: {
+      // required by the nofilter module
+      stream: true,
+
+      // required by the core-util-is module
+      Buffer: true
+    }
   },
   hooks: {
     node: {
       pre: async () => {
         preloadNode = MockPreloadNode.createNode()
-        echoServer = EchoServer.createServer()
 
         await preloadNode.start(),
         await echoServer.start()
+        return {
+          env: {
+            ECHO_SERVER: `http://${echoServer.host}:${echoServer.port}`
+          }
+        }
       },
       post: async () => {
         await preloadNode.stop(),
@@ -54,7 +55,6 @@ module.exports = {
     browser: {
       pre: async () => {
         preloadNode = MockPreloadNode.createNode()
-        echoServer = EchoServer.createServer()
 
         await preloadNode.start()
         await echoServer.start()
@@ -75,21 +75,25 @@ module.exports = {
           type: 'js',
           ipfsModule: require(__dirname),
           ipfsHttpModule: require('ipfs-http-client'),
-          ipfsBin: path.join(__dirname, 'src', 'cli', 'bin.js'),
+          ipfsBin: path.join(__dirname, 'src', 'cli.js'),
           ipfsOptions: {
-            config: {
-              libp2p: {
-                dialer: {
-                  dialTimeout: 60e3 // increase timeout because travis is slow
-                }
+            libp2p: {
+              dialer: {
+                dialTimeout: 60e3 // increase timeout because travis is slow
               }
             }
           }
         }, {
           go: {
-            ipfsBin: require('go-ipfs-dep').path()
+            ipfsBin: require('go-ipfs').path()
           }
         }).start()
+
+        return {
+          env: {
+            ECHO_SERVER: `http://${echoServer.host}:${echoServer.port}`
+          }
+        }
       },
       post: async () => {
         await ipfsdServer.stop()

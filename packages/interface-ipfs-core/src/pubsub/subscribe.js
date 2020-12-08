@@ -1,12 +1,16 @@
 /* eslint-env mocha */
 'use strict'
 
+const uint8ArrayFromString = require('uint8arrays/from-string')
+const uint8ArrayToString = require('uint8arrays/to-string')
+const { nanoid } = require('nanoid')
 const pushable = require('it-pushable')
 const all = require('it-all')
 const { waitForPeers, getTopic } = require('./utils')
 const { getDescribe, getIt, expect } = require('../utils/mocha')
 const delay = require('delay')
-const { isWebWorker } = require('ipfs-utils/src/env')
+const AbortController = require('native-abort-controller')
+const { isWebWorker, isNode } = require('ipfs-utils/src/env')
 
 /** @typedef { import("ipfsd-ctl/src/factory") } Factory */
 /**
@@ -60,12 +64,12 @@ module.exports = (common, options) => {
           msgStream.end()
         })
 
-        await ipfs1.pubsub.publish(topic, Buffer.from('hi'))
+        await ipfs1.pubsub.publish(topic, uint8ArrayFromString('hi'))
 
         for await (const msg of msgStream) {
-          expect(msg.data.toString()).to.equal('hi')
+          expect(uint8ArrayToString(msg.data)).to.equal('hi')
           expect(msg).to.have.property('seqno')
-          expect(Buffer.isBuffer(msg.seqno)).to.eql(true)
+          expect(msg.seqno).to.be.an.instanceof(Uint8Array)
           expect(msg.topicIDs[0]).to.eq(topic)
           expect(msg).to.have.property('from', ipfs1.peerId.id)
           break
@@ -80,12 +84,12 @@ module.exports = (common, options) => {
           msgStream.end()
         }, {})
 
-        await ipfs1.pubsub.publish(topic, Buffer.from('hi'))
+        await ipfs1.pubsub.publish(topic, uint8ArrayFromString('hi'))
 
         for await (const msg of msgStream) {
-          expect(msg.data.toString()).to.equal('hi')
+          expect(uint8ArrayToString(msg.data)).to.equal('hi')
           expect(msg).to.have.property('seqno')
-          expect(Buffer.isBuffer(msg.seqno)).to.eql(true)
+          expect(msg.seqno).to.be.an.instanceof(Uint8Array)
           expect(msg.topicIDs[0]).to.eq(topic)
           expect(msg).to.have.property('from', ipfs1.peerId.id)
         }
@@ -109,13 +113,13 @@ module.exports = (common, options) => {
           ipfs1.pubsub.subscribe(topic, handler2)
         ])
 
-        await ipfs1.pubsub.publish(topic, Buffer.from('hello'))
+        await ipfs1.pubsub.publish(topic, uint8ArrayFromString('hello'))
 
         const [handler1Msg] = await all(msgStream1)
-        expect(handler1Msg.data.toString()).to.eql('hello')
+        expect(uint8ArrayToString(handler1Msg.data)).to.eql('hello')
 
         const [handler2Msg] = await all(msgStream2)
-        expect(handler2Msg.data.toString()).to.eql('hello')
+        expect(uint8ArrayToString(handler2Msg.data)).to.eql('hello')
 
         await ipfs1.pubsub.unsubscribe(topic, handler1)
         await delay(100)
@@ -138,10 +142,10 @@ module.exports = (common, options) => {
           msgStream.end()
         }, { discover: true })
 
-        await ipfs1.pubsub.publish(topic, Buffer.from('hi'))
+        await ipfs1.pubsub.publish(topic, uint8ArrayFromString('hi'))
 
         for await (const msg of msgStream) {
-          expect(msg.data.toString()).to.eql('hi')
+          expect(uint8ArrayToString(msg.data)).to.eql('hi')
         }
       })
     })
@@ -160,6 +164,66 @@ module.exports = (common, options) => {
           .find(ma => ma.nodeAddress().address === '127.0.0.1')
 
         return ipfs1.swarm.connect(ipfs2Addr)
+      })
+
+      it('should receive messages from a different node with floodsub', async function () {
+        if (!isNode) {
+          return this.skip()
+        }
+        const expectedString = 'should receive messages from a different node with floodsub'
+        const topic = `floodsub-${nanoid()}`
+        const ipfs1 = (await common.spawn({
+          ipfsOptions: {
+            config: {
+              Pubsub: {
+                Router: 'floodsub'
+              }
+            }
+          }
+        })).api
+        const ipfs2 = (await common.spawn({
+          type: isWebWorker ? 'go' : undefined,
+          ipfsOptions: {
+            config: {
+              Pubsub: {
+                Router: 'floodsub'
+              }
+            }
+          }
+        })).api
+        await ipfs1.swarm.connect(ipfs2.peerId.addresses[0])
+
+        const msgStream1 = pushable()
+        const msgStream2 = pushable()
+
+        const sub1 = msg => {
+          msgStream1.push(msg)
+          msgStream1.end()
+        }
+        const sub2 = msg => {
+          msgStream2.push(msg)
+          msgStream2.end()
+        }
+
+        const abort1 = new AbortController()
+        const abort2 = new AbortController()
+        await Promise.all([
+          ipfs1.pubsub.subscribe(topic, sub1, { signal: abort1.signal }),
+          ipfs2.pubsub.subscribe(topic, sub2, { signal: abort2.signal })
+        ])
+
+        await waitForPeers(ipfs2, topic, [ipfs1.peerId.id], 30000)
+        await ipfs2.pubsub.publish(topic, uint8ArrayFromString(expectedString))
+
+        const [sub1Msg] = await all(msgStream1)
+        expect(uint8ArrayToString(sub1Msg.data)).to.be.eql(expectedString)
+        expect(sub1Msg.from).to.eql(ipfs2.peerId.id)
+
+        const [sub2Msg] = await all(msgStream2)
+        expect(uint8ArrayToString(sub2Msg.data)).to.be.eql(expectedString)
+        expect(sub2Msg.from).to.eql(ipfs2.peerId.id)
+        abort1.abort()
+        abort2.abort()
       })
 
       it('should receive messages from a different node', async () => {
@@ -183,21 +247,21 @@ module.exports = (common, options) => {
         ])
 
         await waitForPeers(ipfs2, topic, [ipfs1.peerId.id], 30000)
-
-        await ipfs2.pubsub.publish(topic, Buffer.from(expectedString))
+        await delay(5000) // gossipsub need this delay https://github.com/libp2p/go-libp2p-pubsub/issues/331
+        await ipfs2.pubsub.publish(topic, uint8ArrayFromString(expectedString))
 
         const [sub1Msg] = await all(msgStream1)
-        expect(sub1Msg.data.toString()).to.be.eql(expectedString)
+        expect(uint8ArrayToString(sub1Msg.data)).to.be.eql(expectedString)
         expect(sub1Msg.from).to.eql(ipfs2.peerId.id)
 
         const [sub2Msg] = await all(msgStream2)
-        expect(sub2Msg.data.toString()).to.be.eql(expectedString)
+        expect(uint8ArrayToString(sub2Msg.data)).to.be.eql(expectedString)
         expect(sub2Msg.from).to.eql(ipfs2.peerId.id)
       })
 
       it('should round trip a non-utf8 binary buffer', async () => {
         const expectedHex = 'a36161636179656162830103056164a16466666666f4'
-        const buffer = Buffer.from(expectedHex, 'hex')
+        const buffer = uint8ArrayFromString(expectedHex, 'base16')
 
         const msgStream1 = pushable()
         const msgStream2 = pushable()
@@ -217,15 +281,15 @@ module.exports = (common, options) => {
         ])
 
         await waitForPeers(ipfs2, topic, [ipfs1.peerId.id], 30000)
-
+        await delay(5000) // gossipsub need this delay https://github.com/libp2p/go-libp2p-pubsub/issues/331
         await ipfs2.pubsub.publish(topic, buffer)
 
         const [sub1Msg] = await all(msgStream1)
-        expect(sub1Msg.data.toString('hex')).to.be.eql(expectedHex)
+        expect(uint8ArrayToString(sub1Msg.data, 'base16')).to.be.eql(expectedHex)
         expect(sub1Msg.from).to.eql(ipfs2.peerId.id)
 
         const [sub2Msg] = await all(msgStream2)
-        expect(sub2Msg.data.toString('hex')).to.be.eql(expectedHex)
+        expect(uint8ArrayToString(sub2Msg.data, 'base16')).to.be.eql(expectedHex)
         expect(sub2Msg.from).to.eql(ipfs2.peerId.id)
       })
 
@@ -255,17 +319,20 @@ module.exports = (common, options) => {
         ])
 
         await waitForPeers(ipfs2, topic, [ipfs1.peerId.id], 30000)
+        await delay(5000) // gossipsub need this delay https://github.com/libp2p/go-libp2p-pubsub/issues/331
 
-        outbox.forEach(msg => ipfs2.pubsub.publish(topic, Buffer.from(msg)))
+        for (let i = 0; i < outbox.length; i++) {
+          await ipfs2.pubsub.publish(topic, uint8ArrayFromString(outbox[i]))
+        }
 
         const sub1Msgs = await all(msgStream1)
         sub1Msgs.forEach(msg => expect(msg.from).to.eql(ipfs2.peerId.id))
-        const inbox1 = sub1Msgs.map(msg => msg.data.toString())
+        const inbox1 = sub1Msgs.map(msg => uint8ArrayToString(msg.data))
         expect(inbox1.sort()).to.eql(outbox.sort())
 
         const sub2Msgs = await all(msgStream2)
         sub2Msgs.forEach(msg => expect(msg.from).to.eql(ipfs2.peerId.id))
-        const inbox2 = sub2Msgs.map(msg => msg.data.toString())
+        const inbox2 = sub2Msgs.map(msg => uint8ArrayToString(msg.data))
         expect(inbox2.sort()).to.eql(outbox.sort())
       })
 
@@ -289,11 +356,11 @@ module.exports = (common, options) => {
         ])
 
         await waitForPeers(ipfs1, topic, [ipfs2.peerId.id], 30000)
-
+        await delay(5000) // gossipsub need this delay https://github.com/libp2p/go-libp2p-pubsub/issues/331
         const startTime = new Date().getTime()
 
         for (let i = 0; i < count; i++) {
-          const msgData = Buffer.from(msgBase + i)
+          const msgData = uint8ArrayFromString(msgBase + i)
           await ipfs2.pubsub.publish(topic, msgData)
         }
 
@@ -306,7 +373,7 @@ module.exports = (common, options) => {
 
         msgs.forEach(msg => {
           expect(msg.from).to.eql(ipfs2.peerId.id)
-          expect(msg.data.toString().startsWith(msgBase)).to.be.true()
+          expect(uint8ArrayToString(msg.data).startsWith(msgBase)).to.be.true()
         })
       })
     })

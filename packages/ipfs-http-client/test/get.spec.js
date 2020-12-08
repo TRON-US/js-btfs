@@ -3,9 +3,7 @@
 
 'use strict'
 
-const { expect } = require('interface-ipfs-core/src/utils/mocha')
-const loadFixture = require('aegir/fixtures')
-const { Buffer } = require('buffer')
+const { expect } = require('aegir/utils/chai')
 const all = require('it-all')
 const concat = require('it-concat')
 
@@ -14,20 +12,16 @@ const f = require('./utils/factory')()
 describe('.get (specific go-ipfs features)', function () {
   this.timeout(60 * 1000)
 
-  function fixture (path) {
-    return loadFixture(path, 'interface-ipfs-core')
-  }
-
   const smallFile = {
-    cid: 'Qma4hjFTnCasJ8PVp3mZbZK5g2vGDT4LByLJ7m8ciyRFZP',
-    data: fixture('test/fixtures/testfile.txt')
+    cid: 'Qmf412jQZiuVUtdgnB36FXFX7xg5V6KEbSJ4dpQuhkLyfD',
+    data: 'hello world'
   }
 
   let ipfs
 
   before(async () => {
     ipfs = (await f.spawn()).api
-    await all(ipfs.add(smallFile.data))
+    await ipfs.add(smallFile.data)
   })
 
   after(() => f.clean())
@@ -52,7 +46,7 @@ describe('.get (specific go-ipfs features)', function () {
     await expect(all(ipfs.get(smallFile.cid, {
       compress: true,
       compressionLevel: 10
-    }))).to.be.rejectedWith('compression level must be between 1 and 9')
+    }))).to.eventually.be.rejectedWith('compression level must be between 1 and 9')
   })
 
   // TODO Understand why this test started failing
@@ -65,9 +59,9 @@ describe('.get (specific go-ipfs features)', function () {
     const subdir = 'tmp/c++files'
     const expectedCid = 'QmPkmARcqjo5fqK1V1o8cFsuaXxWYsnwCNLJUYS4KeZyff'
     const path = `${subdir}/${filename}`
-    const files = await all(ipfs.add([{
+    const files = await all(ipfs.addAll([{
       path,
-      content: Buffer.from(path)
+      content: path
     }]))
 
     expect(files[2].cid.toString()).to.equal(expectedCid)

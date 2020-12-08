@@ -1,16 +1,14 @@
 /* eslint-env mocha */
 'use strict'
 
-const { expect } = require('interface-ipfs-core/src/utils/mocha')
-const platform = require('browser-process-platform')
+const { expect } = require('aegir/utils/chai')
 const f = require('./utils/factory')()
 
 describe('.diag', function () {
   this.timeout(50 * 1000)
 
   // go-ipfs does not support these on Windows
-  if (platform === 'win32') { return }
-
+  if (global.process && global.process.platform === 'win32') { return }
   let ipfs
 
   before(async () => {

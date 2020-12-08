@@ -1,35 +1,43 @@
 'use strict'
 
-const toFormData = require('../lib/buffer-to-form-data')
 const modeToString = require('../lib/mode-to-string')
-const mtimeToObject = require('../lib/mtime-to-object')
+const { mtimeToObject } = require('ipfs-core-utils/src/files/normalise-input/utils')
 const configure = require('../lib/configure')
+const multipartRequest = require('../lib/multipart-request')
+const toUrlSearchParams = require('../lib/to-url-search-params')
+const { anySignal } = require('any-signal')
+const AbortController = require('native-abort-controller')
 
 module.exports = configure(api => {
-  return async (path, input, options = {}) => {
-    const mtime = mtimeToObject(options.mtime)
-
-    const searchParams = new URLSearchParams(options)
-    searchParams.set('arg', path)
-    searchParams.set('stream-channels', 'true')
-    searchParams.set('hash', options.hashAlg)
-    searchParams.set('hashAlg', null)
-    if (mtime) {
-      searchParams.set('mtime', mtime.secs)
-      searchParams.set('mtimeNsecs', mtime.nsecs)
-    }
+  /**
+   * @type {import('..').Implements<typeof import('ipfs-core/src/components/files/write')>}
+   */
+  async function write (path, input, options = {}) {
+    // allow aborting requests on body errors
+    const controller = new AbortController()
+    const signal = anySignal([controller.signal, options.signal])
 
     const res = await api.post('files/write', {
       timeout: options.timeout,
-      signal: options.signal,
-      searchParams,
-      body: toFormData(input, {
-        mode: options.mode != null ? modeToString(options.mode) : undefined,
-        mtime: mtime ? mtime.secs : undefined,
-        mtimeNsecs: mtime ? mtime.nsecs : undefined
-      }) // TODO: support inputs other than buffer as per spec
+      signal,
+      searchParams: toUrlSearchParams({
+        arg: path,
+        streamChannels: true,
+        count: options.length,
+        ...options
+      }),
+      ...(
+        await multipartRequest({
+          content: input,
+          path: 'arg',
+          mode: modeToString(options.mode),
+          mtime: mtimeToObject(options.mtime)
+        }, controller, options.headers)
+      )
     })
 
-    return res.text()
+    await res.text()
   }
+
+  return write
 })

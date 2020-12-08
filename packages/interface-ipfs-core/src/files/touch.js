@@ -1,23 +1,27 @@
 /* eslint-env mocha */
 'use strict'
 
-const hat = require('hat')
+const uint8ArrayFromString = require('uint8arrays/from-string')
+const uint8ArrayConcat = require('uint8arrays/concat')
+const { nanoid } = require('nanoid')
 const { getDescribe, getIt, expect } = require('../utils/mocha')
 const delay = require('delay')
+const testTimeout = require('../utils/test-timeout')
+const all = require('it-all')
 
 module.exports = (common, options) => {
   const describe = getDescribe(options)
   const it = getIt(options)
 
   describe('.files.touch', function () {
-    this.timeout(10 * 1000)
+    this.timeout(120 * 1000)
 
     let ipfs
 
     async function testMtime (mtime, expectedMtime) {
-      const testPath = `/test-${hat()}`
+      const testPath = `/test-${nanoid()}`
 
-      await ipfs.files.write(testPath, Buffer.from('Hello, world!'), {
+      await ipfs.files.write(testPath, uint8ArrayFromString('Hello, world!'), {
         create: true
       })
 
@@ -38,9 +42,9 @@ module.exports = (common, options) => {
 
     it('should have default mtime', async function () {
       this.slow(5 * 1000)
-      const testPath = `/test-${hat()}`
+      const testPath = `/test-${nanoid()}`
 
-      await ipfs.files.write(testPath, Buffer.from('Hello, world!'), {
+      await ipfs.files.write(testPath, uint8ArrayFromString('Hello, world!'), {
         create: true
       })
 
@@ -58,11 +62,11 @@ module.exports = (common, options) => {
 
     it('should update file mtime', async function () {
       this.slow(5 * 1000)
-      const testPath = `/test-${hat()}`
+      const testPath = `/test-${nanoid()}`
       const mtime = new Date()
       const seconds = Math.floor(mtime.getTime() / 1000)
 
-      await ipfs.files.write(testPath, Buffer.from('Hello, world!'), {
+      await ipfs.files.write(testPath, uint8ArrayFromString('Hello, world!'), {
         create: true,
         mtime
       })
@@ -75,7 +79,7 @@ module.exports = (common, options) => {
 
     it('should update directory mtime', async function () {
       this.slow(5 * 1000)
-      const testPath = `/test-${hat()}`
+      const testPath = `/test-${nanoid()}`
       const mtime = new Date()
       const seconds = Math.floor(mtime.getTime() / 1000)
 
@@ -88,6 +92,38 @@ module.exports = (common, options) => {
 
       const stat2 = await ipfs.files.stat(testPath)
       expect(stat2).to.have.nested.property('mtime.secs').that.is.greaterThan(seconds)
+    })
+
+    it('should update the mtime for a hamt-sharded-directory', async () => {
+      const path = `/foo-${Math.random()}`
+
+      await ipfs.files.mkdir(path, {
+        mtime: new Date()
+      })
+      await ipfs.files.write(`${path}/foo.txt`, uint8ArrayFromString('Hello world'), {
+        create: true,
+        shardSplitThreshold: 0
+      })
+      const originalMtime = (await ipfs.files.stat(path)).mtime
+      await delay(1000)
+      await ipfs.files.touch(path, {
+        flush: true
+      })
+
+      const updatedMtime = (await ipfs.files.stat(path)).mtime
+      expect(updatedMtime.secs).to.be.greaterThan(originalMtime.secs)
+    })
+
+    it('should create an empty file', async () => {
+      const path = `/foo-${Math.random()}`
+
+      await ipfs.files.touch(path, {
+        flush: true
+      })
+
+      const bytes = uint8ArrayConcat(await all(ipfs.files.read(path)))
+
+      expect(bytes.slice()).to.deep.equal(Uint8Array.from([]))
     })
 
     it('should set mtime as Date', async function () {
@@ -121,6 +157,12 @@ module.exports = (common, options) => {
         secs: mtime[0],
         nsecs: mtime[1]
       })
+    })
+
+    it('should respect timeout option when updating the modification time of files', async () => {
+      await testTimeout(() => ipfs.files.touch('/derp', {
+        timeout: 1
+      }))
     })
   })
 }

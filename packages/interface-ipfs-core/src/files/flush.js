@@ -1,8 +1,9 @@
 /* eslint-env mocha */
 'use strict'
 
-const hat = require('hat')
+const { nanoid } = require('nanoid')
 const { getDescribe, getIt, expect } = require('../utils/mocha')
+const testTimeout = require('../utils/test-timeout')
 
 /** @typedef { import("ipfsd-ctl/src/factory") } Factory */
 /**
@@ -14,7 +15,7 @@ module.exports = (common, options) => {
   const it = getIt(options)
 
   describe('.files.flush', function () {
-    this.timeout(40 * 1000)
+    this.timeout(120 * 1000)
 
     let ipfs
 
@@ -23,7 +24,7 @@ module.exports = (common, options) => {
     after(() => common.clean())
 
     it('should not flush not found file/dir, expect error', async () => {
-      const testDir = `/test-${hat()}`
+      const testDir = `/test-${nanoid()}`
 
       try {
         await ipfs.files.flush(`${testDir}/404`)
@@ -32,15 +33,19 @@ module.exports = (common, options) => {
       }
     })
 
+    it('should require a path', () => {
+      expect(ipfs.files.flush()).to.eventually.be.rejected()
+    })
+
     it('should flush root', async () => {
       const root = await ipfs.files.stat('/')
-      const flushed = await ipfs.files.flush()
+      const flushed = await ipfs.files.flush('/')
 
       expect(root.cid.toString()).to.equal(flushed.toString())
     })
 
     it('should flush specific dir', async () => {
-      const testDir = `/test-${hat()}`
+      const testDir = `/test-${nanoid()}`
 
       await ipfs.files.mkdir(testDir, { parents: true })
 
@@ -48,6 +53,12 @@ module.exports = (common, options) => {
       const flushed = await ipfs.files.flush(testDir)
 
       expect(dirStats.cid.toString()).to.equal(flushed.toString())
+    })
+
+    it('should respect timeout option when flushing changes', async () => {
+      await testTimeout(() => ipfs.files.flush('/', {
+        timeout: 1
+      }))
     })
   })
 }

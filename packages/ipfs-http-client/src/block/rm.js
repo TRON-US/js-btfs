@@ -1,38 +1,35 @@
 'use strict'
 
 const CID = require('cids')
-const merge = require('merge-options')
 const configure = require('../lib/configure')
+const toUrlSearchParams = require('../lib/to-url-search-params')
 
 module.exports = configure(api => {
-  return async function * rm (cid, options = {}) {
+  /**
+   * @type {import('..').Implements<typeof import('ipfs-core/src/components/block/rm')>}
+   */
+  async function * rm (cid, options = {}) {
     if (!Array.isArray(cid)) {
       cid = [cid]
     }
 
-    options = merge(
-      options,
-      {
-        'stream-channels': true
-      }
-    )
-
-    const searchParams = new URLSearchParams(options)
-
-    cid.forEach(cid => {
-      searchParams.append('arg', new CID(cid).toString())
-    })
-
-    const res = await api.ndjson('block/rm', {
+    const res = await api.post('block/rm', {
       timeout: options.timeout,
       signal: options.signal,
-      searchParams: searchParams
+      searchParams: toUrlSearchParams({
+        arg: cid.map(cid => new CID(cid).toString()),
+        'stream-channels': true,
+        ...options
+      }),
+      headers: options.headers
     })
 
-    for await (const removed of res) {
+    for await (const removed of res.ndjson()) {
       yield toCoreInterface(removed)
     }
   }
+
+  return rm
 })
 
 function toCoreInterface (removed) {

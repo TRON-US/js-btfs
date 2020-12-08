@@ -2,9 +2,11 @@
 const { createSuite } = require('../utils/suite')
 
 const tests = {
+  add: require('./add'),
+  addAll: require('./add-all'),
   ls: require('./ls'),
   rm: require('./rm'),
-  add: require('./add')
+  rmAll: require('./rm-all')
 }
 
 module.exports = createSuite(tests)

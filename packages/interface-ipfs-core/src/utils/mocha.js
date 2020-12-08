@@ -6,7 +6,7 @@ const chai = require('chai')
 // Do not reorder these statements - https://github.com/chaijs/chai/issues/1298
 chai.use(require('chai-as-promised'))
 chai.use(require('dirty-chai'))
-chai.use(require('chai-things'))
+chai.use(require('chai-subset'))
 
 module.exports.expect = chai.expect
 
@@ -17,10 +17,18 @@ const isObject = (o) => Object.prototype.toString.call(o) === '[object Object]'
 // want to skip/only the whole suite
 function getDescribe (config) {
   if (config) {
-    if (config.skip === true) return describe.skip
+    if (config.skip === true) {
+      return describe.skip
+    }
+
+    if (config.only === true) {
+      return describe.only // eslint-disable-line
+    }
 
     if (isObject(config.skip)) {
-      if (!config.skip.reason) return describe.skip
+      if (!config.skip.reason) {
+        return describe.skip
+      }
 
       const _describe = (name, impl) => {
         describe.skip(`${name} (${config.skip.reason})`, impl)
@@ -32,7 +40,22 @@ function getDescribe (config) {
       return _describe
     }
 
-    if (config.only === true) return describe.only  // eslint-disable-line
+    if (Array.isArray(config.skip)) {
+      const _describe = (name, impl) => {
+        const skip = config.skip.find(skip => skip === name || skip.name === name)
+
+        if (skip) {
+          return describe.skip(`${name} (${skip.reason})`, impl)
+        }
+
+        describe(name, impl)
+      }
+
+      _describe.skip = describe.skip
+      _describe.only = describe.only // eslint-disable-line
+
+      return _describe
+    }
   }
 
   return describe

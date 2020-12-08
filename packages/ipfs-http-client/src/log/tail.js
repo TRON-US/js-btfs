@@ -1,15 +1,17 @@
 'use strict'
 
 const configure = require('../lib/configure')
+const toUrlSearchParams = require('../lib/to-url-search-params')
 
 module.exports = configure(api => {
   return async function * tail (options = {}) {
-    const res = await api.ndjson('log/tail', {
+    const res = await api.post('log/tail', {
       timeout: options.timeout,
       signal: options.signal,
-      searchParams: options
+      searchParams: toUrlSearchParams(options),
+      headers: options.headers
     })
 
-    yield * res
+    yield * res.ndjson()
   }
 })

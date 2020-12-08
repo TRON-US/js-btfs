@@ -2,26 +2,27 @@
 
 const CID = require('cids')
 const configure = require('../lib/configure')
+const toUrlSearchParams = require('../lib/to-url-search-params')
 
 module.exports = configure(api => {
-  return async (cid, path, options = {}) => {
-    if (typeof path === 'object') {
-      options = path
-      path = null
-    }
-
-    options.arg = path
-      ? [cid, path].join(path.startsWith('/') ? '' : '/')
-      : `${cid}`
-
+  /**
+   * @type {import('..').Implements<typeof import('ipfs-core/src/components/dag/resolve')>}
+   */
+  const resolve = async (ipfsPath, options = {}) => {
     const res = await api.post('dag/resolve', {
       timeout: options.timeout,
       signal: options.signal,
-      searchParams: options
+      searchParams: toUrlSearchParams({
+        arg: `${ipfsPath}${options.path ? `/${options.path}`.replace(/\/[/]+/g, '/') : ''}`,
+        ...options
+      }),
+      headers: options.headers
     })
 
     const data = await res.json()
 
-    return { cid: new CID(data.Cid['/']), remPath: data.RemPath }
+    return { cid: new CID(data.Cid['/']), remainderPath: data.RemPath }
   }
+
+  return resolve
 })

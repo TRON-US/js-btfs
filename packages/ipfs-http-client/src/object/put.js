@@ -2,9 +2,13 @@
 
 const CID = require('cids')
 const { DAGNode } = require('ipld-dag-pb')
-const { Buffer } = require('buffer')
-const toFormData = require('../lib/buffer-to-form-data')
+const multipartRequest = require('../lib/multipart-request')
 const configure = require('../lib/configure')
+const toUrlSearchParams = require('../lib/to-url-search-params')
+const { anySignal } = require('any-signal')
+const AbortController = require('native-abort-controller')
+const unit8ArrayToString = require('uint8arrays/to-string')
+const uint8ArrayFromString = require('uint8arrays/from-string')
 
 module.exports = configure(api => {
   return async (obj, options = {}) => {
@@ -13,16 +17,16 @@ module.exports = configure(api => {
       Links: []
     }
 
-    if (Buffer.isBuffer(obj)) {
+    if (obj instanceof Uint8Array) {
       if (!options.enc) {
         tmpObj = {
-          Data: obj.toString(),
+          Data: unit8ArrayToString(obj),
           Links: []
         }
       }
     } else if (DAGNode.isDAGNode(obj)) {
       tmpObj = {
-        Data: obj.Data.toString(),
+        Data: unit8ArrayToString(obj.Data),
         Links: obj.Links.map(l => ({
           Name: l.Name,
           Hash: l.Hash.toString(),
@@ -30,24 +34,31 @@ module.exports = configure(api => {
         }))
       }
     } else if (typeof obj === 'object') {
-      tmpObj.Data = obj.Data.toString()
+      tmpObj.Data = unit8ArrayToString(obj.Data)
       tmpObj.Links = obj.Links
     } else {
       throw new Error('obj not recognized')
     }
 
     let buf
-    if (Buffer.isBuffer(obj) && options.enc) {
+    if (obj instanceof Uint8Array && options.enc) {
       buf = obj
     } else {
-      buf = Buffer.from(JSON.stringify(tmpObj))
+      options.enc = 'json'
+      buf = uint8ArrayFromString(JSON.stringify(tmpObj))
     }
+
+    // allow aborting requests on body errors
+    const controller = new AbortController()
+    const signal = anySignal([controller.signal, options.signal])
 
     const res = await api.post('object/put', {
       timeout: options.timeout,
-      signal: options.signal,
-      searchParams: options,
-      body: toFormData(buf)
+      signal,
+      searchParams: toUrlSearchParams(options),
+      ...(
+        await multipartRequest(buf, controller, options.headers)
+      )
     })
 
     const { Hash } = await res.json()
